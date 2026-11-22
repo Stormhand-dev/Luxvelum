@@ -81,6 +81,7 @@ struct TransparentFogFrame
     bool drawnBeforeWorldText;
     bool armed;
     bool glareDrawn;
+    bool glareReturned;
     StockFogFit fit;
 };
 
@@ -109,6 +110,7 @@ struct TransparentFogStats
     unsigned glareCallsSkipped;
     unsigned unfoggedBatches;
     unsigned unfoggedBatchesFogged;
+    unsigned worldTextBeforeGlare;
 };
 
 TransparentFogStats g_transparentFogStats = {};
@@ -396,11 +398,12 @@ void LogTransparentFogStats(const TransparentFogStats& s)
                  Share(s.modulateColours, batches), Share(s.modulate2xColours, batches),
                  Share(s.otherColours, batches), s.unfoggedBatches, s.unfoggedBatchesFogged);
     VF_LOG_DEBUG("  fog exponent 1: %.1f%%, below 1: %.1f%%, above 1: %.1f%% (lowest %.3f, highest %.3f); glare pass "
-                 "%u drawn before the fog, %u at its own call, %u own calls skipped; 0x%08X holds %s",
+                 "%u drawn before the fog, %u at its own call, %u own calls skipped; 0x%08X holds %s; %u world texts "
+                 "before the glare",
                  Share(s.linearExponents, batches), Share(s.lowerExponents, batches),
                  Share(s.higherExponents, batches), batches ? s.lowestExponent : 0.0f,
                  batches ? s.highestExponent : 0.0f, s.glareDrawnEarly, s.glareCallsPassed, s.glareCallsSkipped,
-                 static_cast<unsigned>(engine::kGlarePassTarget), GlarePassEntryText());
+                 static_cast<unsigned>(engine::kGlarePassTarget), GlarePassEntryText(), s.worldTextBeforeGlare);
 }
 
 void LogTransparentFogStatsWhenDue()
@@ -1425,6 +1428,7 @@ void CallGlarePassUnlessDrawn()
 static void __cdecl GlarePassThunk()
 {
     CallGlarePassUnlessDrawn();
+    g_transparentFog.glareReturned = true;
     __try
     {
         DrawFogBeforeWorldText();
@@ -1510,11 +1514,21 @@ static void __fastcall WaterMaterialRenderHook(void* material, void*, void* envi
     }
 }
 
+static void DrawFogBeforeWorldTextAfterTheGlare()
+{
+    if (g_transparentFogHooksInstalled && !g_transparentFog.glareReturned)
+    {
+        ++g_transparentFogStats.worldTextBeforeGlare;
+        return;
+    }
+    DrawFogBeforeWorldText();
+}
+
 static void __cdecl WorldTextDrawThunk(void* batch)
 {
     __try
     {
-        DrawFogBeforeWorldText();
+        DrawFogBeforeWorldTextAfterTheGlare();
     }
     __except (GuardFilter(GetExceptionCode(), "world text fog hook"))
     {

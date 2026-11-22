@@ -753,7 +753,10 @@ Engine notes behind the code:
   hook then skips it. A name in front of a tree was still reported with the sky's fog beside the trunk with only this
   hook, so the glare thunk at `0x4F9213` draws the fog when the glare pass returns, just before the world text call
   (`0x4F9218`) that its byte guard checks; the text hook stays as the fallback while the glare thunk is not
-  installed. The later name/icon path at `0x4FB042` is left in place.
+  installed. With the glare thunk installed, world text the client draws before the glare pass returns does not draw
+  the fog: with `TransparentFog=0` and a unit targeted, the fog was drawn at such text, before the see-through models
+  of M2 pass 1, and banners in front of the targeted unit lost their fog (Darkshire, 2026-11-22). The later name/icon
+  path at `0x4FB042` is left in place.
 - Native glare. `0x4F9213` (`E8 58 76 2F 00`) calls the sun/moon glare pass `0x7F0870`, which is not patched.
   Its draw `0x9AC400` adds the `sunGlare`/`moonGlare` quads (`D3DBLEND_SRCALPHA`, `D3DBLEND_ONE`) at depth
   `[0.9990234375, 1]`, and its update `0x9AC3C0` runs a GPU occlusion query against the current world depth

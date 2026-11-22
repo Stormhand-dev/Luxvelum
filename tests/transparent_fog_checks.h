@@ -763,6 +763,7 @@ struct FrameOptions
     const DepthTexel* depthTexels = nullptr;
     void (*drawOverBackdrop)(Harness& h) = nullptr;
     WorldTextCapture* worldText = nullptr;
+    bool worldTextBeforeGlare = false;
 };
 
 struct HookedFrame
@@ -861,13 +862,15 @@ HookedFrame RenderHookedFrame(Harness& h, const View& v, const Config& cfg, cons
     DrawBackdropFor(h, v, options);
     EndLiquid(h, v, options, frame);
     DrawEffect(h, v, options, shaders, frame);
+    if (options.worldText && options.worldTextBeforeGlare)
+        CallWorldTextThunk(*options.worldText);
     const int beforeOwnCall = g_glarePasses;
     if (options.keepStateAround)
         frame.stateKept = KeepsState(h, v, &CallGlarePassThunk) && frame.stateKept;
     else
         CallGlarePassThunk();
     frame.glarePassesAtOwnCall = g_glarePasses - beforeOwnCall;
-    if (options.worldText)
+    if (options.worldText && !options.worldTextBeforeGlare)
         CallWorldTextThunk(*options.worldText);
     if (options.unbindDepthAtWorldDone)
         CallWithDepthUnbound(h, &vf_test_hook_world_done);
@@ -1326,6 +1329,27 @@ void CheckFogDrawnBeforeWorldText(Harness& h)
           "again after the world, so names in front of the sky are not hidden by the sky's fog");
 }
 
+void CheckWorldTextBeforeTheGlare(Harness& h)
+{
+    const View v;
+    const Config cfg = HookConfig(false);
+    const HookedFrame plain = RenderSettledHookedFrame(h, v, cfg, FrameOptions());
+    WorldTextCapture text;
+    text.dev = h.dev;
+    FrameOptions options;
+    options.worldText = &text;
+    options.worldTextBeforeGlare = true;
+    const HookedFrame named = RenderSettledHookedFrame(h, v, cfg, options);
+    const int atText = LargestDifference(text.image, plain.image, v.world);
+    const int afterWorld = LargestDifference(named.image, plain.image, v.world);
+    std::printf("     world text before the glare drawn %d times; frame at the text vs the fogged frame %d/255, final "
+                "frame %d/255\n",
+                text.draws, atText, afterWorld);
+    Check(text.draws == kWarmUpFrames && atText > 0 && afterWorld == 0,
+          "with TransparentFog=0, world text the client draws before the glare pass (as with a unit targeted) does "
+          "not draw the fog early, so see-through models drawn after it, such as banners, are still fogged");
+}
+
 struct Fallback
 {
     const char* name;
@@ -1736,6 +1760,7 @@ void CheckTransparentFog(Harness& h)
     CheckFittedColourCarriesThePointLights(h);
     CheckHookedFogRestoresState(h);
     CheckFogDrawnBeforeWorldText(h);
+    CheckWorldTextBeforeTheGlare(h);
     CheckWholeFrameFallbacks(h);
     CheckEarlyCompositeFailureLogged(h);
     CheckThunksAndGlarePass(h);
