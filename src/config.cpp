@@ -136,6 +136,7 @@ const BoolSetting kBoolSettings[] = {
     {"GlowCompensation", &Config::glowCompensation}, {"LocalLights", &Config::localLights},
     {"InteriorAware", &Config::interiorAware},       {"Underwater", &Config::underwater},
     {"LiquidDepth", &Config::liquidDepth},           {"SunMarker", &Config::sunMarker},
+    {"SeeThroughFogProbe", &Config::seeThroughFogProbe},
     {"Water", &Config::water},                       {"Multisampling", &Config::multisampling},
     {"ClassicNoise", &Config::classicNoise},       {"TransparentFog", &Config::transparentFog},
 };

@@ -831,12 +831,30 @@ void ApplyFogOfBatch(const void* batch, M2BatchFogArgs& args)
     ApplyStockFogFit(g_transparentFog.fit, args);
 }
 
+constexpr uint32_t kSeeThroughFogProbeColour = 0xFFFF00FFu;
+
+void ApplySeeThroughFogProbe(M2BatchFogArgs& args)
+{
+    static const uint32_t probeColour = kSeeThroughFogProbeColour;
+    args.start = 0.0f;
+    args.end = 1.0f;
+    args.exponent = kLinearStockFogExponent;
+    if (args.colour && UsesLightingFogColour(*args.colour))
+        args.colour = &probeColour;
+}
+
 void OnM2BatchFog(const void* batch, M2BatchFogArgs& args)
 {
     if (TransparentFogStatsCounted())
         CountM2BatchFog(args);
     if (!g_transparentFog.armed)
         return;
+    if (GlobalConfig().Get().seeThroughFogProbe)
+    {
+        ApplySeeThroughFogProbe(args);
+        ++g_transparentFogStats.batchesRewritten;
+        return;
+    }
     ApplyFogOfBatch(batch, args);
     ++g_transparentFogStats.batchesRewritten;
 }

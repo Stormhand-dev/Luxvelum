@@ -472,6 +472,8 @@ bool DrawDebug(Config& c)
         return false;
     bool changed = Choice("View", c.debugView, 0, kDebugViewNames, "Show one input of the fog instead of the scene");
     changed |= Toggle("Sun marker", c.sunMarker, "Red marker where the sun direction projects on screen");
+    changed |= Toggle("See-through fog probe", c.seeThroughFogProbe,
+                      "Temporary: see-through models drawn after the early fog take full magenta fog");
     changed |= Choice("Log level", c.logLevel, 0, kLogLevelNames, "Detail written to Luxvelum.log");
     return changed;
 }
