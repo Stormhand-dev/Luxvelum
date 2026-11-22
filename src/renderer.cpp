@@ -1201,6 +1201,23 @@ IDirect3DTexture9* Renderer::FilterWithHistory(IDirect3DDevice9* dev, IDirect3DT
     return m_history[write];
 }
 
+static float StockFogOpacityAt(const StockFogFit& fit, float depth)
+{
+    return 1.0f - std::clamp((fit.end - depth) / std::max(fit.end - fit.start, 1e-3f), 0.0f, 1.0f);
+}
+
+static void LogStockFogFit(const StockFogFit& fit)
+{
+    if (!fit.fogs)
+    {
+        VF_LOG_INFO("  see-through fog line: none");
+        return;
+    }
+    VF_LOG_INFO("  see-through fog line: start %.1f end %.1f colour %06X; opacity 10/25/50/100 yd %.2f %.2f %.2f %.2f",
+                fit.start, fit.end, fit.colour & 0xFFFFFFu, StockFogOpacityAt(fit, 10.0f),
+                StockFogOpacityAt(fit, 25.0f), StockFogOpacityAt(fit, 50.0f), StockFogOpacityAt(fit, 100.0f));
+}
+
 void Renderer::LogFrameSummary(IDirect3DDevice9* dev, long long now, const FrameInputs& in, const Config& cfg,
                                const FogParams& fog, const AuthoredFog& authored, const D3DSURFACE_DESC& depthDesc,
                                const float* viewToWorld, const float* toLightInView, const float* sunPx,
@@ -1250,6 +1267,7 @@ void Renderer::LogFrameSummary(IDirect3DDevice9* dev, long long now, const Frame
     DescribeCaptureRejection(in.localLights.capture, rejection, sizeof(rejection));
     VF_LOG_INFO("  local points %s enabled %d%s; interior %d blend %.3f", localPoints, cfg.localLights, rejection,
                 in.localLights.cameraInterior, in.localLights.interiorBlend);
+    LogStockFogFit(m_stockFogFit);
     for (int i = 0; i < kFogLayers; ++i)
     {
         const FogLayer& l = fog.layers[i];
