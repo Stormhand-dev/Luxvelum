@@ -511,11 +511,106 @@ void CheckBatchFogKeepsBlendModeColours()
     Check(SameArgs(before, untouched), "a fit without fog leaves the client's pushed fog arguments bit-identical");
 }
 
+constexpr float kObjectAhead = 50.0f;
+constexpr float kObjectTransmittanceLimit = 0.01f;
+constexpr Vec3 kObjectBesideTheNearLamp = {6.0f, 2.5f, 1.0f};
+constexpr Vec3 kObjectAwayFromTheLamps = {60.0f, 30.0f, 0.0f};
+
+float ClientFactorAt(float start, float end, float viewDepth)
+{
+    return std::fmin(std::fmax((end - viewDepth) / (end - start), 0.0f), 1.0f);
+}
+
+int ColourSum(uint32_t colour)
+{
+    return static_cast<int>(((colour >> 16) & 0xFF) + ((colour >> 8) & 0xFF) + (colour & 0xFF));
+}
+
+bool FogAtObject(const StockFogFit& fit, Vec3 world, ObjectFog& fog)
+{
+    const float position[3] = {world.x, world.y, world.z};
+    return FitObjectFog(fit, position, fog);
+}
+
+void CheckObjectFogOnTheViewAxis()
+{
+    const View v;
+    const FogParams fog = HomogeneousFog(kRegressionDensity, kEmissiveFog);
+    const StockFogFit fit = FitStockFog(fog, v.in, {1.0f, 0.0f});
+    ObjectFog ahead;
+    const bool fitted = FogAtObject(fit, Add(v.eye, {kObjectAhead, 0.0f, 0.0f}), ahead);
+    const float reference = ReferenceTransmittance(fog, v.in.camPos[2], v.in.cameraRelativeView[10], kObjectAhead);
+    const float factor = ClientFactorAt(ahead.start, ahead.end, ahead.viewDepth);
+    ObjectFog behind;
+    const bool fittedBehind = FogAtObject(fit, Add(v.eye, {-kObjectAhead, 0.0f, 0.0f}), behind);
+    std::printf("     object %.0f yd ahead: view depth %.2f, transmittance %.4f (reference %.4f), client factor %.4f, "
+                "colour %06X (screen line %06X); behind the camera fitted %d\n",
+                kObjectAhead, ahead.viewDepth, ahead.transmittance, reference, factor, ahead.colour & 0xFFFFFFu,
+                fit.colour & 0xFFFFFFu, fittedBehind);
+    Check(fitted && ahead.fogs && std::fabs(ahead.viewDepth - kObjectAhead) < 0.01f &&
+              std::fabs(ahead.transmittance - reference) < kObjectTransmittanceLimit &&
+              std::fabs(factor - ahead.transmittance) < 0.001f && !fittedBehind,
+          "a see-through model on the view axis takes the volumetric transmittance at its own depth through the "
+          "client's linear fog, and a model behind the camera is left to the screen's line");
+}
+
+void CheckObjectFogNearALamp()
+{
+    const FrameInputs lit = LampsAroundTheCameraInputs();
+    const View v;
+    const FogParams fog = HomogeneousFog(kLampLitDensity, 0.0f);
+    const StockFogFit fit = FitStockFog(fog, lit, {1.0f, 0.0f, lit.localLights.pointLightCount, kFitLampPhase});
+    ObjectFog nearLamp;
+    ObjectFog away;
+    const bool fitted = FogAtObject(fit, Add(v.eye, kObjectBesideTheNearLamp), nearLamp) &&
+                        FogAtObject(fit, Add(v.eye, kObjectAwayFromTheLamps), away);
+    std::printf("     fog colour beside the near lamp %06X, away from the lamps %06X, screen line %06X\n",
+                nearLamp.colour & 0xFFFFFFu, away.colour & 0xFFFFFFu, fit.colour & 0xFFFFFFu);
+    Check(fitted && nearLamp.fogs && away.fogs && ColourSum(nearLamp.colour) > ColourSum(fit.colour) &&
+              ColourSum(nearLamp.colour) > ColourSum(away.colour),
+          "a see-through model beside a lamp takes the brighter fog the lamp lights there, not the screen's mean");
+}
+
+void CheckObjectPlacement()
+{
+    const float camera[3] = {100.0f, 200.0f, 10.0f};
+    const float model[3] = {130.0f, 240.0f, 10.0f};
+    const bool exact = PlacementMatchesCamera(model, 2500.0f, camera);
+    const bool attached = PlacementMatchesCamera(model, 2800.0f, camera);
+    struct FakeModel
+    {
+        unsigned char bytes[0x130] = {};
+    } fakeModel;
+    struct FakeBatchState
+    {
+        unsigned char bytes[0x100] = {};
+    } fakeState;
+    const uintptr_t modelAddress = reinterpret_cast<uintptr_t>(&fakeModel);
+    std::memcpy(fakeState.bytes + 0x60, &modelAddress, sizeof(modelAddress));
+    std::memcpy(fakeModel.bytes + 0xE4, model, sizeof(model));
+    const float distanceSquared = 2500.0f;
+    std::memcpy(fakeModel.bytes + 0x88, &distanceSquared, sizeof(distanceSquared));
+    engine::M2ModelPlacement placement;
+    const bool read = engine::ReadM2BatchModelPlacement(&fakeState, placement);
+    std::printf("     placement read %d: model at (%.0f %.0f %.0f), camera distance squared %.0f; matches the camera "
+                "%d, a parent's distance %d\n",
+                read, placement.world[0], placement.world[1], placement.world[2], placement.cameraDistanceSquared,
+                exact, attached);
+    Check(read && placement.model == modelAddress && placement.world[0] == model[0] &&
+              placement.world[1] == model[1] && placement.cameraDistanceSquared == distanceSquared && exact &&
+              !attached && !engine::ReadM2BatchModelPlacement(nullptr, placement),
+          "the batch state's model (+0x60) gives the model's world translation (+0xE4) and camera distance squared "
+          "(+0x88), and a translation that does not match that distance is not used");
+}
+
 void CheckStockFogFit(const FogData& classic)
 {
     CheckFitAgainstTheVolumetricFog(classic);
     CheckBatchFogKeepsBlendModeColours();
     CheckFitCarriesTheLocalLightGain();
+    CheckObjectFogOnTheViewAxis();
+    CheckObjectFogNearALamp();
+    CheckObjectPlacement();
 }
 
 void CheckTransparentFogSetting(const std::wstring& outDir, const std::wstring& shippedIni)

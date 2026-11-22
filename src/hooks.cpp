@@ -70,8 +70,18 @@ uintptr_t g_glarePassTarget = engine::kGlarePassTarget;
 uintptr_t g_worldTextDrawTarget = engine::kWorldTextDrawTarget;
 int g_m2BatchFogObserved = 0;
 bool g_transparentFogHooksInstalled = false;
+bool g_objectFogPlacement = false;
 bool g_transparentFogFailed = false;
 StatusLog g_transparentFogLog;
+
+constexpr int kObjectFogsPerFrame = 256;
+
+struct CachedObjectFog
+{
+    uintptr_t model;
+    bool fitted;
+    ObjectFog fog;
+};
 
 struct TransparentFogFrame
 {
@@ -83,6 +93,8 @@ struct TransparentFogFrame
     bool glareDrawn;
     bool glareReturned;
     StockFogFit fit;
+    int objectCount;
+    CachedObjectFog objects[kObjectFogsPerFrame];
 };
 
 TransparentFogFrame g_transparentFog = {};
@@ -111,6 +123,8 @@ struct TransparentFogStats
     unsigned unfoggedBatches;
     unsigned unfoggedBatchesFogged;
     unsigned worldTextBeforeGlare;
+    unsigned batchesFoggedAtTheirModel;
+    unsigned objectsOffCamera;
 };
 
 TransparentFogStats g_transparentFogStats = {};
@@ -391,12 +405,14 @@ void LogTransparentFogStats(const TransparentFogStats& s)
     const unsigned batches = s.batchesBeforeLiquid + s.batchesAfterLiquid + s.batchesOutsideWorld;
     VF_LOG_DEBUG("transparent fog: %u frames, %u early composites; M2 batch fog %u before the liquid end, %u after, "
                  "%u outside the world render, %u rewritten; colours lighting %.1f%%, black %.1f%%, white %.1f%%, "
-                 "grey %.1f%%, other %.1f%%; %u unfogged M2 batches, %u fogged by the fit",
+                 "grey %.1f%%, other %.1f%%; %u unfogged M2 batches, %u fogged by the fit; %u batches fogged at "
+                 "their model, %u models left to the line",
                  s.frames, s.earlyComposites, s.batchesBeforeLiquid, s.batchesAfterLiquid, s.batchesOutsideWorld,
                  s.batchesRewritten,
                  Share(s.lightingColours, batches), Share(s.additiveColours, batches),
                  Share(s.modulateColours, batches), Share(s.modulate2xColours, batches),
-                 Share(s.otherColours, batches), s.unfoggedBatches, s.unfoggedBatchesFogged);
+                 Share(s.otherColours, batches), s.unfoggedBatches, s.unfoggedBatchesFogged,
+                 s.batchesFoggedAtTheirModel, s.objectsOffCamera);
     VF_LOG_DEBUG("  fog exponent 1: %.1f%%, below 1: %.1f%%, above 1: %.1f%% (lowest %.3f, highest %.3f); glare pass "
                  "%u drawn before the fog, %u at its own call, %u own calls skipped; 0x%08X holds %s; %u world texts "
                  "before the glare",
@@ -783,13 +799,45 @@ void CountM2BatchFog(const M2BatchFogArgs& args)
     s.highestExponent = batches ? std::max(s.highestExponent, args.exponent) : args.exponent;
 }
 
-void OnM2BatchFog(M2BatchFogArgs& args)
+const ObjectFog* ObjectFogOf(const void* batch)
+{
+    engine::M2ModelPlacement placement;
+    if (!g_objectFogPlacement || !engine::ReadM2BatchModelPlacement(batch, placement))
+        return nullptr;
+    TransparentFogFrame& frame = g_transparentFog;
+    for (int i = 0; i < frame.objectCount; ++i)
+        if (frame.objects[i].model == placement.model)
+            return frame.objects[i].fitted ? &frame.objects[i].fog : nullptr;
+    if (frame.objectCount >= kObjectFogsPerFrame)
+        return nullptr;
+    CachedObjectFog& cached = frame.objects[frame.objectCount++];
+    cached.model = placement.model;
+    cached.fitted = PlacementMatchesCamera(placement.world, placement.cameraDistanceSquared,
+                                           frame.fit.scene.in.camPos) &&
+                    FitObjectFog(frame.fit, placement.world, cached.fog);
+    if (!cached.fitted)
+        ++g_transparentFogStats.objectsOffCamera;
+    return cached.fitted ? &cached.fog : nullptr;
+}
+
+void ApplyFogOfBatch(const void* batch, M2BatchFogArgs& args)
+{
+    if (const ObjectFog* fog = ObjectFogOf(batch))
+    {
+        ApplyObjectFog(*fog, args);
+        ++g_transparentFogStats.batchesFoggedAtTheirModel;
+        return;
+    }
+    ApplyStockFogFit(g_transparentFog.fit, args);
+}
+
+void OnM2BatchFog(const void* batch, M2BatchFogArgs& args)
 {
     if (TransparentFogStatsCounted())
         CountM2BatchFog(args);
     if (!g_transparentFog.armed)
         return;
-    ApplyStockFogFit(g_transparentFog.fit, args);
+    ApplyFogOfBatch(batch, args);
     ++g_transparentFogStats.batchesRewritten;
 }
 
@@ -804,7 +852,7 @@ void OnM2UnfoggedBatch(const void* batch, int& fogOn)
     if (!engine::ReadM2BatchBlendMode(batch, blendMode) || !UnfoggedBatchFogColour(blendMode, colour))
         return;
     M2BatchFogArgs args = {0.0f, 0.0f, kLinearStockFogExponent, &colour};
-    ApplyStockFogFit(g_transparentFog.fit, args);
+    ApplyFogOfBatch(batch, args);
     reinterpret_cast<M2FogSetterFn>(g_m2BatchFogTarget)(args.start, args.end, args.exponent, args.colour);
     fogOn = 1;
     ++g_transparentFogStats.unfoggedBatchesFogged;
@@ -1291,11 +1339,11 @@ extern "C" void __cdecl vf_on_transparents_begin()
     }
 }
 
-extern "C" void __cdecl vf_on_m2_batch_fog(M2BatchFogArgs* args)
+extern "C" void __cdecl vf_on_m2_batch_fog(const void* batch, M2BatchFogArgs* args)
 {
     __try
     {
-        OnM2BatchFog(*args);
+        OnM2BatchFog(batch, *args);
     }
     __except (TransparentFogGuardFilter(GetExceptionCode(), "M2 batch fog hook"))
     {
@@ -1389,8 +1437,9 @@ __declspec(naked) static void M2BatchFogThunk()
         pushad
         lea eax, [esp + 0x24]
         push eax
+        push dword ptr [esp + 0x8]
         call vf_on_m2_batch_fog
-        add esp, 4
+        add esp, 8
         popad
     forward:
         jmp dword ptr [g_m2BatchFogTarget]
@@ -1749,9 +1798,12 @@ bool InstallTransparentFogHooks()
     if (!SitesHoldTheClientCalls(sites, "transparent fog") || !PatchCallSites(sites))
         return false;
     g_transparentFogHooksInstalled = true;
-    VF_LOG_INFO("transparent fog hooks installed: M2 batch fog 0x%08X, glare pass 0x%08X (TransparentFog=%d)",
+    g_objectFogPlacement = engine::M2ModelPlacementLayoutMatches();
+    VF_LOG_INFO("transparent fog hooks installed: M2 batch fog 0x%08X, glare pass 0x%08X (TransparentFog=%d); "
+                "see-through models fogged %s",
                 static_cast<unsigned>(engine::kM2BatchFogSite), static_cast<unsigned>(engine::kGlarePassSite),
-                GlobalConfig().Get().transparentFog ? 1 : 0);
+                GlobalConfig().Get().transparentFog ? 1 : 0,
+                g_objectFogPlacement ? "at their own position" : "by one line for the screen");
     InstallUnfoggedM2BatchHook();
     return true;
 }

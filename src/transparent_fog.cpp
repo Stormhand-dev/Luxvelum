@@ -510,6 +510,21 @@ uint32_t PackedChannel(float value, int shift)
     return static_cast<uint32_t>(std::lround(std::clamp(value, 0.0f, 1.0f) * kChannelLevels)) << shift;
 }
 
+uint32_t PackedFogColour(const double* scattered, double opacity, bool linear, const StockFogFitLight& light)
+{
+    float colour[3] = {};
+    for (int c = 0; c < 3; ++c)
+    {
+        const float unpremultiplied =
+            opacity > 0.0 ? static_cast<float>(light.exposure * scattered[c] / opacity) : 0.0f;
+        colour[c] = RollOffHighlight(std::max(unpremultiplied, 0.0f));
+        if (linear)
+            colour[c] = BeforeClientGlow(std::pow(colour[c], 1.0f / kDisplayGamma), light.glowToCompensate);
+    }
+    return kLightingFogColourAlpha | PackedChannel(colour[0], 16) | PackedChannel(colour[1], 8) |
+           PackedChannel(colour[2], 0);
+}
+
 uint32_t FittedFogColour(const FitRay* rays, const RaySamples* samples, int rayCount, bool linear,
                          const StockFogFitLight& light)
 {
@@ -526,17 +541,13 @@ uint32_t FittedFogColour(const FitRay* rays, const RaySamples* samples, int rayC
                 scattered[c] += rays[r].weight * sample.inScatter[c];
             opacity += rays[r].weight * sampleOpacity;
         }
-    float colour[3] = {};
-    for (int c = 0; c < 3; ++c)
-    {
-        const float unpremultiplied =
-            opacity > 0.0 ? static_cast<float>(light.exposure * scattered[c] / opacity) : 0.0f;
-        colour[c] = RollOffHighlight(std::max(unpremultiplied, 0.0f));
-        if (linear)
-            colour[c] = BeforeClientGlow(std::pow(colour[c], 1.0f / kDisplayGamma), light.glowToCompensate);
-    }
-    return kLightingFogColourAlpha | PackedChannel(colour[0], 16) | PackedChannel(colour[1], 8) |
-           PackedChannel(colour[2], 0);
+    return PackedFogColour(scattered, opacity, linear, light);
+}
+
+float Distance3(const float* a, const float* b)
+{
+    const float d[3] = {a[0] - b[0], a[1] - b[1], a[2] - b[2]};
+    return std::sqrt(Dot3(d, d));
 }
 }
 
@@ -569,7 +580,68 @@ StockFogFit FitStockFog(const FogParams& drawn, const FrameInputs& in, const Sto
     fit.start = static_cast<float>((1.0 - intercept) / slope);
     fit.end = static_cast<float>(-intercept / slope);
     fit.colour = FittedFogColour(rays, samples, rayCount, fog.linear, light);
+    fit.scene = {true, fog, in, light};
     return fit;
+}
+
+bool PlacementMatchesCamera(const float* world, float cameraDistanceSquared, const float* camPos)
+{
+    const float distance = Distance3(world, camPos);
+    const float squared = distance * distance;
+    return std::isfinite(squared) && std::isfinite(cameraDistanceSquared) &&
+           std::fabs(squared - cameraDistanceSquared) <=
+               std::max(kObjectPlacementMinTolerance, kObjectPlacementTolerance * squared);
+}
+
+bool FitObjectFog(const StockFogFit& fit, const float* world, ObjectFog& out)
+{
+    out = {};
+    const ObjectFogScene& scene = fit.scene;
+    if (!fit.fogs || !scene.valid)
+        return false;
+    float relative[3];
+    for (int axis = 0; axis < 3; ++axis)
+        relative[axis] = world[axis] - scene.in.camPos[axis];
+    float view[3];
+    TransformDirection(relative, scene.in.cameraRelativeView, view);
+    const float distance = std::sqrt(Dot3(relative, relative));
+    if (!(view[2] >= kObjectFogMinViewDepth) || !std::isfinite(distance))
+        return false;
+    FitRay ray = {};
+    for (int axis = 0; axis < 3; ++axis)
+        ray.world[axis] = relative[axis] / distance;
+    ray.distancePerViewDepth = distance / view[2];
+    ray.weight = 1.0f;
+    const FitPointLights points = UploadedPointLights(scene.fog, scene.in, scene.light);
+    DepthSample samples[kFitDepthSteps + 1];
+    IntegrateRay(scene.fog, points, ray, scene.in, view[2] / kFitDepthSteps, kFitDepthSteps, samples);
+    const DepthSample& atObject = samples[kFitDepthSteps];
+    out.viewDepth = view[2];
+    out.transmittance = atObject.transmittance;
+    const float opacity = 1.0f - atObject.transmittance;
+    if (opacity <= kMinFogOpacity)
+        return true;
+    const double scattered[3] = {atObject.inScatter[0], atObject.inScatter[1], atObject.inScatter[2]};
+    out.fogs = true;
+    out.start = 0.0f;
+    out.end = view[2] / opacity;
+    out.colour = PackedFogColour(scattered, opacity, scene.fog.linear, scene.light);
+    return true;
+}
+
+void ApplyObjectFog(const ObjectFog& fog, M2BatchFogArgs& args)
+{
+    args.exponent = kLinearStockFogExponent;
+    if (!fog.fogs)
+    {
+        args.start = kUnfoggedObjectStart;
+        args.end = kUnfoggedObjectStart * 2.0f;
+        return;
+    }
+    args.start = fog.start;
+    args.end = fog.end;
+    if (args.colour && UsesLightingFogColour(*args.colour))
+        args.colour = &fog.colour;
 }
 
 bool UsesLightingFogColour(uint32_t colour)

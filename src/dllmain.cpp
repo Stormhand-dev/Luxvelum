@@ -455,7 +455,7 @@ extern "C" void __cdecl vf_test_hook_liquid_end()
 
 extern "C" void __cdecl vf_test_hook_m2_batch_fog(M2BatchFogArgs* args)
 {
-    vf_on_m2_batch_fog(args);
+    vf_on_m2_batch_fog(nullptr, args);
 }
 
 extern "C" const void* __cdecl vf_test_m2_batch_fog_thunk(uintptr_t target)

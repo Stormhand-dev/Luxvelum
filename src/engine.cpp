@@ -212,6 +212,15 @@ const CodeBytes kTransparentFogClientLayout[] = {
     {"glare pass return", 0x007F08B5, 1, {0xC3}},
 };
 
+const CodeBytes kM2ModelPlacementLayout[] = {
+    {"M2 draw element model into the batch state", 0x00823A1A, 6, {0x8B, 0x40, 0x04, 0x89, 0x46, 0x60}},
+    {"M2 model world matrix operand", 0x0082E349, 6, {0x8D, 0x96, 0xB4, 0x00, 0x00, 0x00}},
+    {"M2 model view matrix", 0x0082E354, 6, {0x8D, 0xBE, 0xF4, 0x00, 0x00, 0x00}},
+    {"M2 model view translation length", 0x0082E37F, 18,
+     {0xD9, 0x86, 0x2C, 0x01, 0x00, 0x00, 0xD9, 0x86, 0x28, 0x01, 0x00, 0x00, 0xD9, 0x86, 0x24, 0x01, 0x00, 0x00}},
+    {"M2 model camera distance store", 0x0082E3A2, 6, {0xD9, 0x9E, 0x88, 0x00, 0x00, 0x00}},
+};
+
 const CodeBytes kUnfoggedM2BatchLayout[] = {
     {"M2 batch object in esi", 0x0081FB18, 2, {0x8B, 0xF1}},
     {"M2 batch material read", 0x0081FB58, 6, {0x8B, 0x8E, 0x98, 0x00, 0x00, 0x00}},
@@ -240,6 +249,10 @@ constexpr uint32_t kGlareSightLineHitFlags = 0x00200112;
 constexpr float kGlareSightLineStart = 0.5f;
 
 constexpr uintptr_t kM2BatchMaterial = 0x98;
+constexpr uintptr_t kM2BatchModel = 0x60;
+constexpr uintptr_t kM2ModelWorldMatrix = 0xB4;
+constexpr uintptr_t kMatrixTranslationRow = 0x30;
+constexpr uintptr_t kM2ModelCameraDistanceSquared = 0x88;
 constexpr uintptr_t kM2MaterialBlendMode = 0x2;
 
 constexpr size_t kGlarePassEntrySize = 7;
@@ -1179,6 +1192,33 @@ bool TransparentFogClientLayoutMatches()
 bool UnfoggedM2BatchLayoutMatches()
 {
     return AllCodeBytesMatch(kUnfoggedM2BatchLayout, "unfogged M2 batch hook");
+}
+
+bool M2ModelPlacementLayoutMatches()
+{
+    return AllCodeBytesMatch(kM2ModelPlacementLayout, "M2 model placement");
+}
+
+bool ReadM2BatchModelPlacement(const void* batch, M2ModelPlacement& placement)
+{
+    if (!batch)
+        return false;
+    __try
+    {
+        const uintptr_t model = Read<uintptr_t>(reinterpret_cast<uintptr_t>(batch) + kM2BatchModel);
+        if (!model)
+            return false;
+        for (int axis = 0; axis < 3; ++axis)
+            placement.world[axis] =
+                Read<float>(model + kM2ModelWorldMatrix + kMatrixTranslationRow + axis * sizeof(float));
+        placement.cameraDistanceSquared = Read<float>(model + kM2ModelCameraDistanceSquared);
+        placement.model = model;
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
 }
 
 bool ReadM2BatchBlendMode(const void* batch, uint16_t& blendMode)

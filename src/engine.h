@@ -158,6 +158,16 @@ bool WaterClientLayoutMatches();
 bool TransparentFogClientLayoutMatches();
 bool UnfoggedM2BatchLayoutMatches();
 bool ReadM2BatchBlendMode(const void* batch, uint16_t& blendMode);
+
+struct M2ModelPlacement
+{
+    uintptr_t model = 0;
+    float world[3] = {};
+    float cameraDistanceSquared = 0.0f;
+};
+
+bool M2ModelPlacementLayoutMatches();
+bool ReadM2BatchModelPlacement(const void* batch, M2ModelPlacement& placement);
 void DescribeGlarePassEntry(char* text, size_t size);
 bool TransparentLiquidsQueued(const void* liquidRenderer);
 WaterClass ClassifyWaterSettings(const void* liquidSettings);

@@ -49,7 +49,7 @@ extern "C" void __cdecl vf_on_opaque_done();
 extern "C" void __cdecl vf_on_liquid_end();
 extern "C" void __cdecl vf_on_transparents_begin();
 extern "C" void __cdecl vf_on_world_done();
-extern "C" void __cdecl vf_on_m2_batch_fog(M2BatchFogArgs* args);
+extern "C" void __cdecl vf_on_m2_batch_fog(const void* batch, M2BatchFogArgs* args);
 extern "C" void __cdecl vf_on_water_pass_begin(const void* liquidRenderer);
 extern "C" void __cdecl vf_on_water_pass_end();
 

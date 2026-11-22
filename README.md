@@ -337,6 +337,14 @@ with how clear they are, toward the depth where the transmittance along the view
 never past the far clip; when even the far clip keeps 99.5%, no line is fitted and the effects stay unfogged. God rays
 are added at the end of the world render. Under water, with `StockFog=0`, a debug view or the sun marker, or when the
 early composite cannot run, the fog is drawn after the world.
+Since TEST Build-2-26 each see-through model takes its own fog instead of the screen's line where its position can be
+read (see M2 model placement): the volumetric transmittance and in-scatter along the ray from the camera to the
+model's origin, point lights included, through a line from fog 1 at the camera to that transmittance at the model's
+planar depth, with that in-scatter as its lighting colour. Banners in front of a lamp-lit doorway in Darkshire at night
+had taken the screen's mean colour (`383D46`) while the fog around them was lit by the lamps, and looked unfogged
+(2026-11-22); the screen's line had matched the volumetric opacity at 15 to 100 yd within 0.1. A model behind the
+camera, an attached model, or one past the 256 models a frame keeps the screen's line, and at `LogLevel=2` the
+transparent fog line counts the batches fogged at their model.
 Batches the client draws unfogged (an M2 material with the unfogged flag, a lighting without fog, blend mode 7), among
 them lamp glows, wisps and other glowing effects, take the same line with the colour of their blend mode: drawn after
 the composite they had no fog at all and shone through any fog at any distance, where the fog drawn after the world
@@ -792,6 +800,16 @@ Engine notes behind the code:
   lighting `[esi+0x70]`), the colour's address (`lea ecx, [ebp−4]`), the end (`+0xAC`) and the start (`+0xA8`),
   calls the setter at `0x81FD15` (`E8 F6 34 05 00` → `0x873210`), then `0x873390(1)`, and pops the arguments
   (`0x81FD1A 6A 01 E8 6F 36 05 00 83 C4 14`).
+- M2 model placement. The batch state `esi` of `0x81FB10` is the M2 scene's render state: the element loop at
+  `0x8239E0` walks draw elements of 0x44 bytes and keeps the current one at `+0x50`, its type at `+0x58` and its
+  model at `+0x60` (`0x823A1A 8B 40 04 89 46 60`, element `+4`); the lighting is the model's `+0x2A8` at `+0x70`.
+  The transparent elements sort by the float at element `+0x10` (comparator `0x81EF40`), which `0x821930` copies
+  from the model's `+0x88`. `0x82E0C0` multiplies the model's 4×4 matrix at `+0xB4` (`0x82E349 8D 96 B4 00 00 00`)
+  by the camera matrix through `0x4C1F00` into `+0xF4` (`0x82E354 8D BE F4 00 00 00`) and stores the squared length
+  of that product's translation, `+0x124`..`+0x12C` (`0x82E37F D9 86 2C 01 00 00 D9 86 28 01 00 00 D9 86 24 01 00
+  00`), as `+0x88` (`0x82E3A2 D9 9E 88 00 00 00`), or a parent's `+0x88` for an attached model. The DLL reads the
+  translation row of `+0xB4` (`+0xE4`) as the model's world position and uses it only where its squared distance to
+  the camera matches `+0x88` within 2% (at least 1 yd²), so an attached model keeps the screen's line.
 - M2 unfogged batch. The batch is `esi` throughout `0x81FB10` (`0x81FB18 8B F1`); seven calls reach it (`0x82040D`,
   `0x8209E6`, `0x820B3E`, `0x820FA6`, `0x8210CD`, `0x821606`, `0x82307D`). It reads the material
   (`0x81FB58 8B 8E 98 00 00 00`), takes mode 0 when its flags have 0x2 (`0x81FB61 F6 01 02`) or the lighting's fog
