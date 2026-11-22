@@ -422,6 +422,20 @@ void LogTransparentFogStats(const TransparentFogStats& s)
                  static_cast<unsigned>(engine::kGlarePassTarget), GlarePassEntryText(), s.worldTextBeforeGlare);
 }
 
+void LogObjectFogsOfTheFrame()
+{
+    constexpr int kLoggedObjects = 16;
+    const TransparentFogFrame& frame = g_transparentFog;
+    VF_LOG_DEBUG("  %d see-through models fogged in the last frame", frame.objectCount);
+    for (int i = 0; i < frame.objectCount && i < kLoggedObjects; ++i)
+    {
+        const CachedObjectFog& o = frame.objects[i];
+        VF_LOG_DEBUG("    model %08X: %s, view depth %.1f, transmittance %.3f, colour %06X, line %.1f..%.1f",
+                     static_cast<unsigned>(o.model), o.fitted ? "own fog" : "screen line", o.fog.viewDepth,
+                     o.fog.transmittance, o.fog.colour & 0xFFFFFFu, o.fog.start, o.fog.end);
+    }
+}
+
 void LogTransparentFogStatsWhenDue()
 {
     if (!TransparentFogStatsCounted())
@@ -439,6 +453,7 @@ void LogTransparentFogStatsWhenDue()
     g_transparentFogStatsDue = false;
     g_transparentFogStatsTicks = now;
     LogTransparentFogStats(g_transparentFogStats);
+    LogObjectFogsOfTheFrame();
     g_transparentFogStats = {};
 }
 
@@ -833,12 +848,17 @@ void ApplyFogOfBatch(const void* batch, M2BatchFogArgs& args)
 
 constexpr uint32_t kSeeThroughFogProbeColour = 0xFFFF00FFu;
 
-void ApplySeeThroughFogProbe(M2BatchFogArgs& args)
+void ApplySeeThroughFogProbe(const void* batch, M2BatchFogArgs& args, int probe)
 {
     static const uint32_t probeColour = kSeeThroughFogProbeColour;
-    args.start = 0.0f;
-    args.end = 1.0f;
-    args.exponent = kLinearStockFogExponent;
+    if (probe == 2)
+        ApplyFogOfBatch(batch, args);
+    else
+    {
+        args.start = 0.0f;
+        args.end = 1.0f;
+        args.exponent = kLinearStockFogExponent;
+    }
     if (args.colour && UsesLightingFogColour(*args.colour))
         args.colour = &probeColour;
 }
@@ -849,9 +869,9 @@ void OnM2BatchFog(const void* batch, M2BatchFogArgs& args)
         CountM2BatchFog(args);
     if (!g_transparentFog.armed)
         return;
-    if (GlobalConfig().Get().seeThroughFogProbe)
+    if (const int probe = GlobalConfig().Get().seeThroughFogProbe)
     {
-        ApplySeeThroughFogProbe(args);
+        ApplySeeThroughFogProbe(batch, args, probe);
         ++g_transparentFogStats.batchesRewritten;
         return;
     }

@@ -472,8 +472,9 @@ bool DrawDebug(Config& c)
         return false;
     bool changed = Choice("View", c.debugView, 0, kDebugViewNames, "Show one input of the fog instead of the scene");
     changed |= Toggle("Sun marker", c.sunMarker, "Red marker where the sun direction projects on screen");
-    changed |= Toggle("See-through fog probe", c.seeThroughFogProbe,
-                      "Temporary: see-through models drawn after the early fog take full magenta fog");
+    changed |= ImGui::SliderInt("See-through fog probe", &c.seeThroughFogProbe, 0, 2);
+    ImGui::SetItemTooltip("Temporary: 1 = see-through models after the early fog take full magenta fog, 2 = their "
+                          "own fog amount in magenta");
     changed |= Choice("Log level", c.logLevel, 0, kLogLevelNames, "Detail written to Luxvelum.log");
     return changed;
 }
