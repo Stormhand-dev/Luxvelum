@@ -100,6 +100,7 @@ extern "C" __declspec(dllimport) void __cdecl vf_test_hook_frame_begin();
 extern "C" __declspec(dllimport) void __cdecl vf_test_hook_liquid_end();
 extern "C" __declspec(dllimport) void __cdecl vf_test_hook_world_done();
 extern "C" __declspec(dllimport) void __cdecl vf_test_hook_m2_batch_fog(M2BatchFogArgs*);
+extern "C" __declspec(dllimport) int __cdecl vf_test_read_m2_model_placement(const void*, engine::M2ModelPlacement*);
 extern "C" __declspec(dllimport) const void* __cdecl vf_test_m2_batch_fog_thunk(uintptr_t);
 extern "C" __declspec(dllimport) const void* __cdecl vf_test_m2_unfogged_batch_thunk(uintptr_t);
 extern "C" __declspec(dllimport) const void* __cdecl vf_test_glare_pass_thunk(uintptr_t);

@@ -591,14 +591,14 @@ void CheckObjectPlacement()
     const float distanceSquared = 2500.0f;
     std::memcpy(fakeModel.bytes + 0x88, &distanceSquared, sizeof(distanceSquared));
     engine::M2ModelPlacement placement;
-    const bool read = engine::ReadM2BatchModelPlacement(&fakeState, placement);
+    const bool read = vf_test_read_m2_model_placement(&fakeState, &placement) != 0;
     std::printf("     placement read %d: model at (%.0f %.0f %.0f), camera distance squared %.0f; matches the camera "
                 "%d, a parent's distance %d\n",
                 read, placement.world[0], placement.world[1], placement.world[2], placement.cameraDistanceSquared,
                 exact, attached);
     Check(read && placement.model == modelAddress && placement.world[0] == model[0] &&
               placement.world[1] == model[1] && placement.cameraDistanceSquared == distanceSquared && exact &&
-              !attached && !engine::ReadM2BatchModelPlacement(nullptr, placement),
+              !attached && vf_test_read_m2_model_placement(nullptr, &placement) == 0,
           "the batch state's model (+0x60) gives the model's world translation (+0xE4) and camera distance squared "
           "(+0x88), and a translation that does not match that distance is not used");
 }

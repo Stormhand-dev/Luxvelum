@@ -453,6 +453,11 @@ extern "C" void __cdecl vf_test_hook_liquid_end()
     vf_on_transparents_begin();
 }
 
+extern "C" int __cdecl vf_test_read_m2_model_placement(const void* batch, engine::M2ModelPlacement* placement)
+{
+    return engine::ReadM2BatchModelPlacement(batch, *placement) ? 1 : 0;
+}
+
 extern "C" void __cdecl vf_test_hook_m2_batch_fog(M2BatchFogArgs* args)
 {
     vf_on_m2_batch_fog(nullptr, args);
