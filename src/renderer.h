@@ -159,6 +159,7 @@ private:
     PendingDepthProbe m_pendingProbe;
     GpuTimer m_gpuTimer{"fog"};
     StockFogFit m_stockFogFit;
+    bool m_stockFogFitLogDue = false;
     GodRayFrame m_lateGodRays;
     UINT m_lowW = 0;
     UINT m_lowH = 0;

@@ -1206,11 +1206,16 @@ static float StockFogOpacityAt(const StockFogFit& fit, float depth)
     return 1.0f - std::clamp((fit.end - depth) / std::max(fit.end - fit.start, 1e-3f), 0.0f, 1.0f);
 }
 
-static void LogStockFogFit(const StockFogFit& fit)
+static void LogStockFogFit(const StockFogFit& fit, FogPass pass)
 {
+    if (pass != FogPass::BeforeTransparents)
+    {
+        VF_LOG_INFO("  see-through fog line: none, the fog is drawn after the world");
+        return;
+    }
     if (!fit.fogs)
     {
-        VF_LOG_INFO("  see-through fog line: none");
+        VF_LOG_INFO("  see-through fog line: none, the fog is too thin to fit");
         return;
     }
     VF_LOG_INFO("  see-through fog line: start %.1f end %.1f colour %06X; opacity 10/25/50/100 yd %.2f %.2f %.2f %.2f",
@@ -1267,7 +1272,7 @@ void Renderer::LogFrameSummary(IDirect3DDevice9* dev, long long now, const Frame
     DescribeCaptureRejection(in.localLights.capture, rejection, sizeof(rejection));
     VF_LOG_INFO("  local points %s enabled %d%s; interior %d blend %.3f", localPoints, cfg.localLights, rejection,
                 in.localLights.cameraInterior, in.localLights.interiorBlend);
-    LogStockFogFit(m_stockFogFit);
+    m_stockFogFitLogDue = true;
     for (int i = 0; i < kFogLayers; ++i)
     {
         const FogLayer& l = fog.layers[i];
@@ -1747,6 +1752,11 @@ bool Renderer::RenderPasses(IDirect3DDevice9* dev, const SceneDepth& depth, IDir
         m_gpuTimer.End();
     if (pass == FogPass::BeforeTransparents)
         m_stockFogFit = FitStockFog(fog, in, {composite[0].x, composite[2].w, pointLightCount, cfg.localLightPhase});
+    if (m_stockFogFitLogDue)
+    {
+        LogStockFogFit(m_stockFogFit, pass);
+        m_stockFogFitLogDue = false;
+    }
 
     if (DepthProbeDue(now))
     {
