@@ -389,21 +389,22 @@ passes read is a copy. `CheckDeviceMultiSampleType` offers the game's sample cou
 and a copy method exists: `NvAPI_D3D9_StretchRectEx` on native NVIDIA D3D9, or the driver's `RESZ` resolve where
 `CheckDeviceFormat` reports it (AMD, Intel). Since 2.6.2, DXVK reports `RESZ` only for an AMD or Intel vendor id, so an
 NVIDIA card behind DXVK has neither method unless DXVK reports AMD (`d3d9.customVendorId = 1002` in `dxvk.conf`).
-`DxvkAmdVendor=1` does that without the file: when Luxvelum attaches, with the multisampling kept, `d3d9.dll` not loaded
-yet and no `d3d9.customVendorId` in `DXVK_CONFIG`, it appends that option to the process's `DXVK_CONFIG`, which DXVK
-reads with the same syntax as `dxvk.conf`; the log names the decision. It is off by default, since the game and DXVK
-then see an AMD card. Setting the variable just before the first `Direct3DCreate9` was too late: DXVK 3.1.1 had read its
-settings already, its log named only `dxvk.conf` and the adapter kept vendor `0x10DE` (owner's RTX 4060, 2026-11-23).
-Set while Luxvelum attaches, it works there: DXVK's log reads `Found config env: d3d9.customVendorId = 1002`, the
-adapter reports vendor `0x1002` with `aticfx32.dll`, the game offers its Multisampling choices and 4x is kept with
-`RESZ` copying the depth, with the line in `dxvk.conf` commented out (same day, TEST Build-2-34). The multisampled depth
-is created as D24S8, since the game's D24X8 has no stencil for the water tags and the silhouette split, and a self-test
-copies two known depths before the game sees the device; if it fails the device stays single-sampled. The depth is
-copied before the water pass, after the water surfaces and before the fog, one sample per pixel; scene copies become
-resolves, and water is tagged and shaded per sample. Where a pixel's 3×3 copied depths are not planar, a pass marks its
-near and far samples in the stencil with an `oDepth` halfway between them (clamped to the viewport, so the split uses
-MinZ 0 and MaxZ 1), and the composite fogs each side at its own depth, so a pixel half tree and half sky blends both
-fogs by coverage.
+`DxvkAmdVendor=1`, the default, does that without the file: when Luxvelum attaches, with the multisampling kept, an
+NVIDIA driver installed (`nvapi.dll` in the system folder; the display enumeration of user32 does not belong in
+`DllMain`), `d3d9.dll` not loaded yet and no `d3d9.customVendorId` in `DXVK_CONFIG`, it appends that option to the
+process's `DXVK_CONFIG`, which DXVK reads with the same syntax as `dxvk.conf`; the log names the decision. The game and
+DXVK then see an AMD card; without DXVK nothing reads the variable. Setting the variable just before the first
+`Direct3DCreate9` was too late: DXVK 3.1.1 had read its settings already, its log named only `dxvk.conf` and the adapter
+kept vendor `0x10DE` (owner's RTX 4060, 2026-11-23). Set while Luxvelum attaches, it works there: DXVK's log reads
+`Found config env: d3d9.customVendorId = 1002`, the adapter reports vendor `0x1002` with `aticfx32.dll`, the game offers
+its Multisampling choices and 4x is kept with `RESZ` copying the depth, with the line in `dxvk.conf` commented out (same
+day, TEST Build-2-34). The multisampled depth is created as D24S8, since the game's D24X8 has no stencil for the water
+tags and the silhouette split, and a self-test copies two known depths before the game sees the device; if it fails the
+device stays single-sampled. The depth is copied before the water pass, after the water surfaces and before the fog, one
+sample per pixel; scene copies become resolves, and water is tagged and shaded per sample. Where a pixel's 3×3 copied
+depths are not planar, a pass marks its near and far samples in the stencil with an `oDepth` halfway between them
+(clamped to the viewport, so the split uses MinZ 0 and MaxZ 1), and the composite fogs each side at its own depth, so a
+pixel half tree and half sky blends both fogs by coverage.
 
 **View distance.** Ascension's Extensions.dll detours the far-clip clamp (`0x780770`) and caps maps 0, 1, 530
 and 571 at 791.66 yd; the engine allows 1583.33 and instances use it. With `FarClipMax` set, the DLL's calls

@@ -11,6 +11,7 @@ struct DxvkVendorInputs
     bool asked = false;
     bool multisampling = false;
     bool d3d9Loaded = false;
+    bool nvidiaDriver = false;
     std::string dxvkConfig;
 };
 

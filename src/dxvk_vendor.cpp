@@ -10,6 +10,7 @@
 namespace
 {
 constexpr DWORD kMaxDxvkConfigLength = 4096;
+constexpr const char* kNvidiaDriverLibrary = "nvapi.dll";
 
 bool ContainsIgnoringCase(const std::string& text, const char* part)
 {
@@ -26,6 +27,16 @@ bool ContainsIgnoringCase(const std::string& text, const char* part)
             return true;
     }
     return false;
+}
+
+bool NvidiaDriverInstalled()
+{
+    char systemFolder[MAX_PATH] = {};
+    const UINT length = GetSystemDirectoryA(systemFolder, MAX_PATH);
+    if (length == 0 || length >= MAX_PATH)
+        return false;
+    const std::string nvapi = std::string(systemFolder) + "\\" + kNvidiaDriverLibrary;
+    return GetFileAttributesA(nvapi.c_str()) != INVALID_FILE_ATTRIBUTES;
 }
 
 std::string CurrentDxvkConfig()
@@ -55,6 +66,8 @@ DxvkVendorDecision DecideDxvkVendor(const DxvkVendorInputs& inputs)
         return {false, "", "DxvkAmdVendor=0"};
     if (!inputs.multisampling)
         return {false, "", "Multisampling=0"};
+    if (!inputs.nvidiaDriver)
+        return {false, "", "no NVIDIA driver (nvapi.dll) in the system folder, so DXVK offers RESZ already"};
     if (inputs.d3d9Loaded)
         return {false, "", "d3d9.dll was loaded before Luxvelum, so DXVK has read its settings already"};
     if (DxvkConfigSetsVendor(inputs.dxvkConfig))
@@ -70,6 +83,7 @@ void ReportAmdToDxvkWhenAsked(bool asked, bool multisampling)
     inputs.asked = asked;
     inputs.multisampling = multisampling;
     inputs.d3d9Loaded = GetModuleHandleA("d3d9.dll") != nullptr;
+    inputs.nvidiaDriver = NvidiaDriverInstalled();
     inputs.dxvkConfig = CurrentDxvkConfig();
     const DxvkVendorDecision decision = DecideDxvkVendor(inputs);
     if (!decision.reportAmd)
