@@ -214,6 +214,7 @@ add_custom_target(luxvelum_runtime_files ALL
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/Luxvelum.ini
             $<TARGET_FILE_DIR:Luxvelum>/WTF
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata.bin
+            ${CMAKE_CURRENT_SOURCE_DIR}/data/fogdata-without-darker-nights.bin
             ${CMAKE_CURRENT_SOURCE_DIR}/data/waterdata.bin ${CMAKE_CURRENT_SOURCE_DIR}/data/zones.ini
             $<TARGET_FILE_DIR:Luxvelum>/Data/Luxvelum
     COMMENT "Copying Luxvelum.ini into WTF and the fog, water and zone data into Data/Luxvelum beside Luxvelum.dll"

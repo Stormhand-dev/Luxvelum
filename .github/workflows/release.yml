@@ -49,8 +49,8 @@ jobs:
         run: |
           $package = 'build/package'
           New-Item -ItemType Directory -Path $package | Out-Null
-          $files = 'Luxvelum.dll', 'WTF/Luxvelum.ini', 'Data/Luxvelum/fogdata.bin', 'Data/Luxvelum/waterdata.bin',
-            'Data/Luxvelum/zones.ini'
+          $files = 'Luxvelum.dll', 'WTF/Luxvelum.ini', 'Data/Luxvelum/fogdata.bin',
+            'Data/Luxvelum/fogdata-without-darker-nights.bin', 'Data/Luxvelum/waterdata.bin', 'Data/Luxvelum/zones.ini'
           foreach ($file in $files) {
             $destination = "$package/$file"
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
@@ -166,7 +166,9 @@ jobs:
             echo "never loaded and no \`Luxvelum.log\` is written."
             echo
             echo "Then, with the client closed, unzip \`Luxvelum-Win32.zip\` into the client folder next to"
-            echo "\`Wow.exe\`: it puts \`Luxvelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\`, \`waterdata.bin\` and"
+            echo "\`Wow.exe\`: it puts \`Luxvelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\` and"
+            echo "\`fogdata-without-darker-nights.bin\` (Luxvelum loads the one that matches the client's night"
+            echo "lighting, with or without the Project Reforged darker nights patch), \`waterdata.bin\` and"
             echo "\`zones.ini\` (the shipped sun and moon halo per zone) into \`Data\\Luxvelum\`, and"
             echo "\`Luxvelum.ini\` (the default settings) into \`WTF\`. Your own halos in"
             echo "\`WTF\\Luxvelum-zones.ini\` are not in the package and stay as they are. The log is"
@@ -371,7 +373,9 @@ jobs:
             echo "never loaded and no \`Luxvelum.log\` is written."
             echo
             echo "Then, with the client closed, unzip \`Luxvelum-Win32.zip\` into the client folder next to"
-            echo "\`Wow.exe\`: it puts \`Luxvelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\`, \`waterdata.bin\` and"
+            echo "\`Wow.exe\`: it puts \`Luxvelum.dll\` next to \`Wow.exe\`, \`fogdata.bin\` and"
+            echo "\`fogdata-without-darker-nights.bin\` (Luxvelum loads the one that matches the client's night"
+            echo "lighting, with or without the Project Reforged darker nights patch), \`waterdata.bin\` and"
             echo "\`zones.ini\` (the shipped sun and moon halo per zone) into \`Data\\Luxvelum\`, and"
             echo "\`Luxvelum.ini\` (the default settings) into \`WTF\`. Your own halos in"
             echo "\`WTF\\Luxvelum-zones.ini\` are not in the package and stay as they are. The log is"
