@@ -82,6 +82,7 @@ struct Config
     bool underwater = false;
     bool liquidDepth = true;
     bool multisampling = true;
+    bool dxvkAmdVendor = false;
     int debugView = 0;
     bool sunMarker = false;
     int logLevel = 1;

@@ -423,12 +423,19 @@ bool DrawAntialiasing(Config& c)
     const Section section("Antialiasing");
     if (!section)
         return false;
-    return Toggle("Keep the game's multisampling", c.multisampling,
-                  "Keep the game's Multisampling video option (smooth edges) when the graphics driver can copy its "
-                  "depth for the fog and water: NVIDIA through NVAPI, AMD and Intel through RESZ. Off: multisampling "
-                  "stays off. The game lists its Multisampling choices once per start, so turning this on takes "
-                  "effect after restarting the game; turning it off applies the next time the game resets its "
-                  "display, for example after changing Multisampling or the resolution in its Video options");
+    bool changed = Toggle("Keep the game's multisampling", c.multisampling,
+                          "Keep the game's Multisampling video option (smooth edges) when the graphics driver can "
+                          "copy its depth for the fog and water: NVIDIA through NVAPI, AMD and Intel through RESZ. "
+                          "Off: multisampling stays off. The game lists its Multisampling choices once per start, so "
+                          "turning this on takes effect after restarting the game; turning it off applies the next "
+                          "time the game resets its display, for example after changing Multisampling or the "
+                          "resolution in its Video options");
+    changed |= Toggle("Report AMD to DXVK", c.dxvkAmdVendor,
+                      "NVIDIA card with DXVK only: DXVK offers the RESZ depth copy only to AMD and Intel cards, so "
+                      "Luxvelum asks it to report AMD (d3d9.customVendorId = 1002) and multisampling becomes "
+                      "available, as that line in dxvk.conf would do. The game and DXVK then see an AMD card. "
+                      "Takes effect after restarting the game");
+    return changed;
 }
 
 bool DrawWater(Config& c)

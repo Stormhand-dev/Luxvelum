@@ -157,6 +157,7 @@ add_library(Luxvelum SHARED
     src/config.cpp
     src/d3d9_wrap.cpp
     src/dllmain.cpp
+    src/dxvk_vendor.cpp
     src/engine.cpp
     src/engine_actors.cpp
     src/engine_lights.cpp
@@ -205,7 +206,7 @@ add_executable(vfog_harness tests/harness.cpp src/celestial_occlusion.cpp src/ch
                src/gpu_timing.cpp src/install_paths.cpp src/log.cpp src/noise_volume.cpp src/transparent_fog.cpp
                src/water_contacts.cpp src/water_data.cpp src/water_spectrum.cpp src/water_fft.cpp
                src/water_ripples.cpp src/status_log.cpp src/zone_halo.cpp src/client_light_bands.cpp
-               src/fog_data_choice.cpp)
+               src/fog_data_choice.cpp src/dxvk_vendor.cpp)
 target_include_directories(vfog_harness PRIVATE src ${SHADER_OUT} ${BUILD_ID_DIR})
 target_compile_definitions(vfog_harness PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(vfog_harness PRIVATE Luxvelum user32 ole32 windowscodecs)

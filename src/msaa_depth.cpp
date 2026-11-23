@@ -542,12 +542,17 @@ DepthCopyProbe ProbeDriver(IDirect3D9* d3d, UINT adapter, D3DDEVTYPE type)
         return {DepthCopyMethod::None, "the driver has no RESZ depth resolve and the adapter is not NVIDIA"};
     if (!LoadedFromSystemFolder(FirstMethodOf(d3d)))
         return {DepthCopyMethod::None, "d3d9.dll is not the system copy (DXVK or another wrapper), so NVAPI cannot "
-                                       "copy its depth"};
+                                       "copy its depth; behind DXVK, DxvkAmdVendor=1 lets it offer RESZ"};
     const NvapiD3D9& nvapi = Nvapi();
     if (nvapi.unavailable[0])
         return {DepthCopyMethod::None, nvapi.unavailable};
     return {DepthCopyMethod::Nvapi, ""};
 }
+}
+
+bool CodeLoadedFromSystemFolder(const void* code)
+{
+    return LoadedFromSystemFolder(code);
 }
 
 const char* DepthCopyMethodName(DepthCopyMethod method)

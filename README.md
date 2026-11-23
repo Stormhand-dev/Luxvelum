@@ -387,7 +387,13 @@ back when the hold ends.
 **Antialiasing.** D3D9 textures cannot be multisampled, so with the game's Multisampling option the depth the
 passes read is a copy. `CheckDeviceMultiSampleType` offers the game's sample counts only while `Multisampling=1`
 and a copy method exists: `NvAPI_D3D9_StretchRectEx` on native NVIDIA D3D9, or the driver's `RESZ` resolve where
-`CheckDeviceFormat` reports it (AMD, Intel). The multisampled depth is created as D24S8, since the game's D24X8 has no
+`CheckDeviceFormat` reports it (AMD, Intel). Since 2.6.2, DXVK reports `RESZ` only for an AMD or Intel vendor id, so
+an NVIDIA card behind DXVK has neither method unless DXVK reports AMD (`d3d9.customVendorId = 1002` in `dxvk.conf`).
+`DxvkAmdVendor=1` does that without the file: before the first `Direct3DCreate9` is passed on, when the
+multisampling is kept, `d3d9.dll` is not the system copy, the desktop's primary display device has PCI vendor
+`10DE` and `DXVK_CONFIG` does not set `d3d9.customVendorId` yet, Luxvelum appends that option to the process's
+`DXVK_CONFIG`, which DXVK reads with the same syntax as `dxvk.conf`; the log names the decision. It is off by
+default, since the game and DXVK then see an AMD card. The multisampled depth is created as D24S8, since the game's D24X8 has no
 stencil for the water tags and the silhouette split, and a self-test copies two known depths before the game sees
 the device; if it fails the device stays single-sampled. The depth is copied before the water pass, after the water
 surfaces and before the fog, one sample per pixel; scene copies become resolves, and water is tagged and shaded per
@@ -1387,7 +1393,8 @@ game: both are off when their keys are missing, and the shipped INI keeps `Forev
 - The `gxApi d3d9ex` path is not wrapped (fog and the settings window stay off there). The settings window also
   needs a fog device, so it is missing when INTZ depth is unsupported.
 - Multisampling is harness-checked on the RTX 2060 (NVAPI) and tested in game on the Steam Deck
-  (`RESZ` through DXVK, see above); alpha-tested foliage stays jagged.
+  (`RESZ` through DXVK, see above), on the owner's RTX 4060 through NVAPI with the system `d3d9.dll` and through
+  `RESZ` behind DXVK 3.0 with `d3d9.customVendorId = 1002` (2026-11-23); alpha-tested foliage stays jagged.
 - The silhouette split sees one copied depth sample per pixel, so sub-pixel geometry it misses takes the far fog.
 - The distance fog (`FarFog`, maps without Classic data) has no modern counterpart: it stands in for the stock
   fog up to the 3.3.5 far clip, which is far shorter than the modern client's.

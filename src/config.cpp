@@ -137,7 +137,8 @@ const BoolSetting kBoolSettings[] = {
     {"InteriorAware", &Config::interiorAware},       {"Underwater", &Config::underwater},
     {"LiquidDepth", &Config::liquidDepth},           {"SunMarker", &Config::sunMarker},
     {"Water", &Config::water},                       {"Multisampling", &Config::multisampling},
-    {"ClassicNoise", &Config::classicNoise},       {"TransparentFog", &Config::transparentFog},
+    {"DxvkAmdVendor", &Config::dxvkAmdVendor},       {"ClassicNoise", &Config::classicNoise},
+    {"TransparentFog", &Config::transparentFog},
 };
 
 const BoolSetting kWaterBoolSettings[] = {

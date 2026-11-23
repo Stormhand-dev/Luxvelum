@@ -67,13 +67,14 @@ reverse-engineering evidence.
 
 - `proxy/` — the optional `version.dll` loader that forwards to the system copy.
 - `src/` — `d3d9_wrap` (device wrapper, INTZ depth), `msaa_depth` (multisampled depth copy into INTZ: NVAPI, RESZ,
-  self-test), `hooks` (call-site thunks), `engine` (client addresses and frame inputs), `engine_actors` (unit walk for
-  water contacts), `engine_lights` (point-light table walk, view-frustum test, ranked candidate pool, twin lights
-  merged), `local_light_stabiliser` (eight slots with hysteresis, fades and holds across captures), `client_code`
-  (client code views and byte guards), `client_light_stay` (the in-memory lightstay byte), `client_map` (the map id the
-  far clip setter reads, the loading screen's as fallback), `client_camera_focus` (the position of the unit the camera
-  follows, the camera position as fallback), `fog_data` (Classic fog data), `fog_data_choice` (the `fogdata*.bin` whose
-  band probes match the client's loaded `LightIntBand`), `client_light_bands` (that table's records in the client),
+  self-test), `dxvk_vendor` (`DxvkAmdVendor`: DXVK asked through `DXVK_CONFIG` to report AMD, so it offers RESZ),
+  `hooks` (call-site thunks), `engine` (client addresses and frame inputs), `engine_actors` (unit walk for water
+  contacts), `engine_lights` (point-light table walk, view-frustum test, ranked candidate pool, twin lights merged),
+  `local_light_stabiliser` (eight slots with hysteresis, fades and holds across captures), `client_code` (client code
+  views and byte guards), `client_light_stay` (the in-memory lightstay byte), `client_map` (the map id the far clip
+  setter reads, the loading screen's as fallback), `client_camera_focus` (the position of the unit the camera follows,
+  the camera position as fallback), `fog_data` (Classic fog data), `fog_data_choice` (the `fogdata*.bin` whose band
+  probes match the client's loaded `LightIntBand`), `client_light_bands` (that table's records in the client),
   `fog_model` (layer parameters), `renderer` (passes), `light_on_screen` (the sun's or moon's position on screen),
   `celestial_occlusion` (the smoothed share of the sun's or moon's sight line that the world hides, with the farthest
   occluder), `character_on_screen` (the own character's cylinder around the camera focus and its box on screen, kept out

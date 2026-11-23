@@ -1,6 +1,7 @@
 #include "d3d9_wrap.h"
 
 #include "client_ripple_sprites.h"
+#include "dxvk_vendor.h"
 #include "log.h"
 #include "msaa_depth.h"
 #include "overlay.h"
@@ -1254,6 +1255,9 @@ IDirect3D9* WINAPI WrappedDirect3DCreate9(UINT sdkVersion)
 {
     if (!g_realCreate)
         return nullptr;
+    const Config& cfg = GlobalConfig().Get();
+    ReportAmdToDxvkWhenAsked(cfg.dxvkAmdVendor, cfg.multisampling,
+                             CodeLoadedFromSystemFolder(reinterpret_cast<const void*>(g_realCreate)));
     IDirect3D9* real = g_realCreate(sdkVersion);
     if (!real)
         return nullptr;

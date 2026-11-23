@@ -3223,6 +3223,7 @@ void CheckSettingsWindowKeepsItsSize(Harness& h, const PanelRect& expected, cons
 #include "twin_light_checks.h"
 #include "client_light_stay_checks.h"
 #include "fog_data_choice_checks.h"
+#include "dxvk_vendor_checks.h"
 #include "client_map_checks.h"
 #include "camera_focus_checks.h"
 #include "noise_variation_checks.h"
@@ -3567,6 +3568,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
         client_light_stay_checks::CheckClientLightStay();
     fog_data_choice_checks::CheckClientIntBandReads();
     fog_data_choice_checks::CheckFogDataChoice();
+    dxvk_vendor_checks::CheckDxvkVendor();
         client_map_checks::CheckCurrentMapFollowsTheFarClipSetter();
         camera_focus_checks::CheckTheFocusFollowsTheClientStores();
         camera_focus_checks::CheckTheCharacterBoxFollowsTheFocus();
@@ -3657,6 +3659,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     client_light_stay_checks::CheckClientLightStay();
     fog_data_choice_checks::CheckClientIntBandReads();
     fog_data_choice_checks::CheckFogDataChoice();
+    dxvk_vendor_checks::CheckDxvkVendor();
     client_map_checks::CheckCurrentMapFollowsTheFarClipSetter();
     camera_focus_checks::CheckTheFocusFollowsTheClientStores();
     camera_focus_checks::CheckTheCharacterBoxFollowsTheFocus();
