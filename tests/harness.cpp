@@ -1584,6 +1584,7 @@ void CheckSunlessByDayKeepsTheMoon()
     fog.layerCount = 1;
     AuthoredLayer& layer = fog.layers[0];
     layer.diffuse[0] = layer.diffuse[1] = layer.diffuse[2] = 0.8f;
+    layer.intensity = 1.0f;
     layer.density = 0.002f;
     layer.g = 0.7f;
     layer.upperHeight = 400.0f;
