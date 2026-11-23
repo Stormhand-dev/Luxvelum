@@ -124,6 +124,15 @@ jobs:
         run: |
           (cd package && zip -r ../Luxvelum-Win32.zip .)
           (cd loader && zip -r ../Luxvelum-version-dll-Win32.zip .)
+          cp package/WTF/Luxvelum.ini Luxvelum.ini
+
+      - name: Check out the release notes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          path: source
+          sparse-checkout: RELEASE_NOTES.md
+          sparse-checkout-cone-mode: false
 
       - name: Create or refresh the release
         id: publish
@@ -156,6 +165,12 @@ jobs:
           fi
           tag="build-${number}"
           {
+            if [ -s source/RELEASE_NOTES.md ]; then
+              cat source/RELEASE_NOTES.md
+              echo
+              echo "## Install"
+              echo
+            fi
             echo "Luxvelum: Atmospheric Immersion for Project Reforged — WoW 3.3.5."
             echo
             echo "Win32 Release build of \`${BRANCH}\` at ${short}."
@@ -180,7 +195,8 @@ jobs:
             echo "earlier package next to \`Wow.exe\`, and the old \`Luxveil.*\` and \`CoAVolFog.*\` files, are then"
             echo "no longer used and can be deleted; delete the earlier INI once \`Logs\\Luxvelum.log\` names it as"
             echo "taken over, or a later reset of \`WTF\` takes it over again."
-            echo "\`BUILD.txt\` names the commit."
+            echo "\`BUILD.txt\` names the commit. \`Luxvelum.ini\`, attached on its own, is the same file as"
+            echo "\`WTF/Luxvelum.ini\` in the zip, for the Project Reforged Launcher."
             echo
             echo "Optional: \`Luxvelum-version-dll-Win32.zip\` holds \`version.dll\`, a loader for a \`Wow.exe\`"
             echo "without the Luxvelum loader patch. Unzip it next to \`Wow.exe\`; it forwards everything to the"
@@ -196,8 +212,8 @@ jobs:
             echo "Luxvelum Build-${number} (${BRANCH} ${short})"
           }
           create_release() {
-            gh release create "$tag" Luxvelum-Win32.zip Luxvelum-version-dll-Win32.zip --repo "$GITHUB_REPOSITORY" \
-              --target "$SHA" --title "$(release_title)" --notes-file notes.md
+            gh release create "$tag" Luxvelum-Win32.zip Luxvelum-version-dll-Win32.zip Luxvelum.ini \
+              --repo "$GITHUB_REPOSITORY" --target "$SHA" --title "$(release_title)" --notes-file notes.md
           }
           move_tag() {
             gh api --method PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/${tag}" -f sha="$SHA" -F force=true --silent
@@ -257,13 +273,13 @@ jobs:
             gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --target "$SHA" --title "$(release_title)" \
               --notes-file notes.md
             swap_in_replacement_zip
-            gh release upload "$tag" Luxvelum-version-dll-Win32.zip --clobber --repo "$GITHUB_REPOSITORY"
+            gh release upload "$tag" Luxvelum-version-dll-Win32.zip Luxvelum.ini --clobber --repo "$GITHUB_REPOSITORY"
           }
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             if [ "$REFRESH" = "true" ]; then
               refresh_release
             else
-              gh release upload "$tag" Luxvelum-Win32.zip Luxvelum-version-dll-Win32.zip --clobber \
+              gh release upload "$tag" Luxvelum-Win32.zip Luxvelum-version-dll-Win32.zip Luxvelum.ini --clobber \
                 --repo "$GITHUB_REPOSITORY"
             fi
           else
@@ -315,6 +331,7 @@ jobs:
         run: |
           (cd package && zip -r ../Luxvelum-Win32.zip .)
           (cd loader && zip -r ../Luxvelum-version-dll-Win32.zip .)
+          cp package/WTF/Luxvelum.ini Luxvelum.ini
 
       - name: Replace the test release
         env:
@@ -387,7 +404,8 @@ jobs:
             echo "earlier package next to \`Wow.exe\`, and the old \`Luxveil.*\` and \`CoAVolFog.*\` files, are then"
             echo "no longer used and can be deleted; delete the earlier INI once \`Logs\\Luxvelum.log\` names it as"
             echo "taken over, or a later reset of \`WTF\` takes it over again."
-            echo "\`BUILD.txt\` names the commit."
+            echo "\`BUILD.txt\` names the commit. \`Luxvelum.ini\`, attached on its own, is the same file as"
+            echo "\`WTF/Luxvelum.ini\` in the zip, for the Project Reforged Launcher."
             echo
             echo "Optional: \`Luxvelum-version-dll-Win32.zip\` holds \`version.dll\`, a loader for a \`Wow.exe\`"
             echo "without the Luxvelum loader patch. Unzip it next to \`Wow.exe\`; it forwards everything to the"
@@ -399,8 +417,9 @@ jobs:
             echo "Validation: build, source comments and CPU harness passed in [run ${RUN_NUMBER}](${RUN_URL})."
             echo "D3D9 graphics checks and in-game validation were not run."
           } > notes.md
-          gh release create "$tag" Luxvelum-Win32.zip Luxvelum-version-dll-Win32.zip --repo "$GITHUB_REPOSITORY" \
-            --prerelease --latest=false --target "$SHA" --title "$title" --notes-file notes.md
+          gh release create "$tag" Luxvelum-Win32.zip Luxvelum-version-dll-Win32.zip Luxvelum.ini \
+            --repo "$GITHUB_REPOSITORY" --prerelease --latest=false --target "$SHA" --title "$title" \
+            --notes-file notes.md
           released=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
             --jq '.[] | select(.prerelease | not) | .tag_name | select(test("^build-[0-9]+$")) | ltrimstr("build-")' |
             sort -n | tail -n 1)
