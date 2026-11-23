@@ -142,9 +142,10 @@ target_compile_definitions(imgui
 
 include(cmake/BuildId.cmake)
 luxvelum_build_id(LUXVELUM_BUILD_ID)
+luxvelum_version(LUXVELUM_VERSION)
 set(BUILD_ID_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
 configure_file(cmake/build_id.h.in ${BUILD_ID_DIR}/build_id.h @ONLY)
-message(STATUS "Luxvelum build id: ${LUXVELUM_BUILD_ID}")
+message(STATUS "Luxvelum ${LUXVELUM_VERSION}, build id: ${LUXVELUM_BUILD_ID}")
 
 add_library(Luxvelum SHARED
     src/celestial_occlusion.cpp

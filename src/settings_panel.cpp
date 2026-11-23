@@ -487,7 +487,7 @@ const char* WindowTitle()
 {
     static char title[kWindowTitleSize] = {};
     if (!title[0])
-        std::snprintf(title, sizeof(title), "Luxvelum %s###Luxvelum", kLuxvelumBuildId);
+        std::snprintf(title, sizeof(title), "Luxvelum %s (%s)###Luxvelum", kLuxvelumVersion, kLuxvelumBuildId);
     return title;
 }
 }

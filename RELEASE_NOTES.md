@@ -1,4 +1,4 @@
-## What's new since Build-1
+## What's new in v1.0.0 (since Build-1)
 
 - **Multisampling with NVIDIA behind DXVK, no `dxvk.conf` edit.** Since DXVK 2.6.2 the RESZ depth copy is offered
   only to AMD and Intel cards. Where the NVIDIA driver is installed, Luxvelum now asks DXVK to report an AMD card

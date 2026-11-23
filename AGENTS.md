@@ -48,6 +48,8 @@ reverse-engineering evidence.
   tester. Reply to him in Brazilian Portuguese; code, commits, README, issues and release notes stay in English.
 - Develop on `reforged-dev` and release from `reforged-main`. Every push to `reforged-dev` publishes a TEST Build
   pre-release, so put `[skip ci]` in the message of a commit that changes no shipped file.
+- `VERSION` holds the `MAJOR.MINOR.PATCH` of the next release, published as tag `v<version>`; raise it, with the owner,
+  for each release (patch for fixes, minor for features), since a version released from another commit fails the job.
 - `RELEASE_NOTES.md` holds the "What's new" of the release `reforged-main` publishes next; the release job puts it
   above the install text, since release notes cannot be edited from these sessions. Every release also carries
   `Luxvelum.ini` on its own, the same file as `WTF/Luxvelum.ini` in `Luxvelum-Win32.zip`: the Project Reforged

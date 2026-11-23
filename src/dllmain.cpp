@@ -79,8 +79,8 @@ void Attach(HMODULE module)
     const char* adoptedFrom = AdoptEarlierSettings(dir, paths.ini);
     GlobalConfig().Load(paths.ini);
     const Config& cfg = GlobalConfig().Get();
-    VF_LOG_INFO("Luxvelum %s loaded from %s; settings %s, fog data %s, water data %s", kLuxvelumBuildId, dir.c_str(),
-                paths.ini.c_str(), paths.fogData.c_str(), paths.waterData.c_str());
+    VF_LOG_INFO("Luxvelum %s (%s) loaded from %s; settings %s, fog data %s, water data %s", kLuxvelumVersion,
+                kLuxvelumBuildId, dir.c_str(), paths.ini.c_str(), paths.fogData.c_str(), paths.waterData.c_str());
     if (!pinned)
         VF_LOG_ERROR("Luxvelum.dll could not pin itself in the process; unloading it would leave the hooks calling "
                      "unmapped code");
