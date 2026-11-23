@@ -95,7 +95,6 @@ Config ShippedWaterTuning()
     tuned.waterFoam = 0.3f;
     tuned.waterReflections = 0.5f;
     tuned.waterSpecular = 1.5f;
-    tuned.waterClarity = 1.4f;
     return tuned;
 }
 
@@ -104,14 +103,14 @@ void CheckShippedWaterSettings(const std::wstring& shippedIni)
     ConfigStore store;
     store.Load(NarrowPath(shippedIni));
     Check(SameWaterSettings(store.Get(), ShippedWaterTuning()),
-          "the shipped INI's water keys load with its tuned waves, wind, foam, reflections, glint and clarity and "
+          "the shipped INI's water keys load with its tuned waves, wind, foam, reflections and glint and "
           "the built-in defaults of the other water keys");
     Check(Config().waterRipples == 0.5f && store.Get().waterRipples == 0.5f,
           "WaterRipples defaults to 0.5, in the code and in the shipped INI");
     const std::vector<std::string> lines = IniLines(ReadText(shippedIni));
     const char* const shippedLines[] = {"Water=1",           "WaterQuality=2",   "WaterWaves=0.5",
                                         "WaterWind=1",       "WaterFoam=0.3",    "WaterReflections=0.5",
-                                        "WaterSpecular=1.5", "WaterClarity=1.4", "WaterZoneColors=0.5",
+                                        "WaterSpecular=1.5", "WaterClarity=1",   "WaterZoneColors=0.5",
                                         "WaterRipples=0.5",  "WaterClientSplashes=0", "WaterDebugView=0"};
     int found = 0;
     for (const char* shipped : shippedLines)
