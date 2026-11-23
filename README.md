@@ -345,7 +345,8 @@ fog, a lerp in display gamma, takes instead the opacity and colour that give the
 over white (exact there, within 0.1 over mid grey): the volumetric opacity with the plain fog colour left dark models
 far darker than the fog around them, which is why the banners still looked unfogged with their own fog (Darkshire,
 TEST Build-2-29: a banner 43.5 yd away with transmittance 0.56 and in-scatter per opacity 0.17 0.14 0.19, as the depth
-probe read 0.13 to 0.18 0.13 to 0.14 0.18 to 0.20 around 41 to 49 yd). Banners in front of a lamp-lit doorway in Darkshire at night
+probe read 0.13 to 0.18 0.13 to 0.14 0.18 to 0.20 around 41 to 49 yd). Banners in front of a lamp-lit doorway in
+Darkshire at night
 had taken the screen's mean colour (`383D46`) while the fog around them was lit by the lamps, and looked unfogged
 (2026-11-22); the screen's line had matched the volumetric opacity at 15 to 100 yd within 0.1. A model behind the
 camera, an attached model, or one past the 256 models a frame keeps the screen's line, and at `LogLevel=2` the
