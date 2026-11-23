@@ -12,19 +12,33 @@
 
 namespace
 {
-constexpr const char* kSection = "LuxVelum";
-constexpr const char* kSectionLine = "[LuxVelum]";
-constexpr const char* kIniName = "LuxVelum.ini";
+constexpr const char* kSection = "Luxvelum";
+constexpr const char* kSectionLine = "[Luxvelum]";
+constexpr const char* kUtf8Bom = "\xEF\xBB\xBF";
+constexpr const char* kUtf16LeBom = "\xFF\xFE";
 
 struct EarlierSettings
 {
     const char* ini;
-    const char* sectionLine;
+    const char* section;
 };
 
 constexpr EarlierSettings kEarlierSettings[] = {
-    {"Luxveil.ini", "[Luxveil]"},
-    {"CoAVolFog.ini", "[CoAVolFog]"},
+    {"Luxvelum.ini", "Luxvelum"},
+    {"Luxveil.ini", "Luxveil"},
+    {"CoAVolFog.ini", "CoAVolFog"},
+};
+
+struct IniText
+{
+    std::string text;
+    bool utf16 = false;
+};
+
+struct RenamedSections
+{
+    std::string text;
+    int renamed = 0;
 };
 constexpr unsigned kMaxFunctionKey = 24;
 
@@ -53,8 +67,10 @@ struct BoolSetting
 const IntSetting kIntSettings[] = {
     {"Quality", &Config::quality, 1, 3},     {"StockFog", &Config::stockFog, 0, 1},
     {"DataMode", &Config::dataMode, 0, 1},   {"ColorSpace", &Config::colorSpace, 0, 1},
-    {"DebugView", &Config::debugView, 0, 3}, {"LogLevel", &Config::logLevel, 0, 2},
+    {"DebugView", &Config::debugView, 0, 4}, {"LogLevel", &Config::logLevel, 0, 2},
     {"ClassicPhase", &Config::classicPhase, 0, 1},
+    {"OutlandClassicFog", &Config::outlandClassicFog, 0, 1},
+    {"NorthrendClassicFog", &Config::northrendClassicFog, 0, 1},
 };
 
 const IntSetting kLookIntSettings[] = {
@@ -72,10 +88,23 @@ const IntSetting kWaterIntSettings[] = {
 
 const FloatSetting kFloatSettings[] = {
     {"Density", &Config::density, 0.0f, 10.0f},
+    {"AzerothDensity", &Config::azerothDensity, 0.0f, 10.0f},
+    {"OutlandDensity", &Config::outlandDensity, 0.0f, 10.0f},
+    {"NorthrendDensity", &Config::northrendDensity, 0.0f, 10.0f},
+    {"TBCStartDensity", &Config::tbcStartDensity, 0.0f, 10.0f},
+    {"AzerothSkyColor", &Config::azerothSkyColor, 0.0f, 1.0f},
+    {"OutlandSkyColor", &Config::outlandSkyColor, 0.0f, 1.0f},
+    {"NorthrendSkyColor", &Config::northrendSkyColor, 0.0f, 1.0f},
+    {"TBCStartSkyColor", &Config::tbcStartSkyColor, 0.0f, 1.0f},
+    {"AzerothLocalLights", &Config::azerothLocalLights, 0.0f, kRegionLocalLightsMax},
+    {"OutlandLocalLights", &Config::outlandLocalLights, 0.0f, kRegionLocalLightsMax},
+    {"NorthrendLocalLights", &Config::northrendLocalLights, 0.0f, kRegionLocalLightsMax},
+    {"TBCStartLocalLights", &Config::tbcStartLocalLights, 0.0f, kRegionLocalLightsMax},
     {"Haze", &Config::haze, 0.0f, 10.0f},
     {"GroundFog", &Config::groundFog, 0.0f, 10.0f},
     {"FarFog", &Config::farFog, 0.0f, 10.0f},
     {"SunScatter", &Config::sunScatter, 0.0f, 10.0f},
+    {"MoonScatter", &Config::moonScatter, 0.0f, 10.0f},
     {"Ambient", &Config::ambient, 0.0f, 10.0f},
     {"Exposure", &Config::exposure, 0.0f, 10.0f},
     {"ClassicExposure", &Config::classicExposure, 0.0f, 10.0f},
@@ -108,7 +137,8 @@ const BoolSetting kBoolSettings[] = {
     {"InteriorAware", &Config::interiorAware},       {"Underwater", &Config::underwater},
     {"LiquidDepth", &Config::liquidDepth},           {"SunMarker", &Config::sunMarker},
     {"Water", &Config::water},                       {"Multisampling", &Config::multisampling},
-    {"ClassicNoise", &Config::classicNoise},       {"TransparentFog", &Config::transparentFog},
+    {"DxvkAmdVendor", &Config::dxvkAmdVendor},       {"ClassicNoise", &Config::classicNoise},
+    {"TransparentFog", &Config::transparentFog},
 };
 
 const BoolSetting kWaterBoolSettings[] = {
@@ -267,9 +297,72 @@ bool ReadWholeFile(const std::string& path, std::string& text)
     return ok;
 }
 
-std::string WithSectionRenamed(const std::string& text, const char* earlierSectionLine)
+bool StartsWith(const std::string& text, const char* prefix)
 {
-    std::string adopted;
+    return text.compare(0, std::strlen(prefix), prefix) == 0;
+}
+
+std::string Utf8FromUtf16Le(const std::string& bytes)
+{
+    const int units = static_cast<int>(bytes.size() / sizeof(wchar_t));
+    if (units == 0)
+        return std::string();
+    std::wstring wide(units, L'\0');
+    std::memcpy(&wide[0], bytes.data(), units * sizeof(wchar_t));
+    const int size = WideCharToMultiByte(CP_UTF8, 0, wide.data(), units, nullptr, 0, nullptr, nullptr);
+    if (size <= 0)
+        return std::string();
+    std::string text(size, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, wide.data(), units, &text[0], size, nullptr, nullptr);
+    return text;
+}
+
+std::string Utf16LeFromUtf8(const std::string& text)
+{
+    const int length = static_cast<int>(text.size());
+    if (length == 0)
+        return std::string();
+    const int units = MultiByteToWideChar(CP_UTF8, 0, text.data(), length, nullptr, 0);
+    if (units <= 0)
+        return std::string();
+    std::wstring wide(units, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, text.data(), length, &wide[0], units);
+    return std::string(reinterpret_cast<const char*>(wide.data()), units * sizeof(wchar_t));
+}
+
+IniText DecodedIni(const std::string& bytes)
+{
+    IniText ini;
+    if (StartsWith(bytes, kUtf16LeBom))
+    {
+        ini.utf16 = true;
+        ini.text = Utf8FromUtf16Le(bytes.substr(std::strlen(kUtf16LeBom)));
+    }
+    else
+        ini.text = StartsWith(bytes, kUtf8Bom) ? bytes.substr(std::strlen(kUtf8Bom)) : bytes;
+    return ini;
+}
+
+std::string EncodedIni(const std::string& text, bool utf16)
+{
+    return utf16 ? kUtf16LeBom + Utf16LeFromUtf8(text) : text;
+}
+
+bool IsSectionHeader(const std::string& line, const char* section, size_t& afterHeader)
+{
+    const size_t open = line.find_first_not_of(" \t");
+    if (open == std::string::npos || line[open] != '[')
+        return false;
+    const size_t close = line.rfind(']');
+    if (close == std::string::npos || close < open)
+        return false;
+    afterHeader = close + 1;
+    return SameText(Trimmed(line.substr(open + 1, close - open - 1)), section);
+}
+
+RenamedSections WithSectionRenamed(const std::string& text, const char* earlierSection)
+{
+    RenamedSections adopted;
     size_t start = 0;
     while (start < text.size())
     {
@@ -278,7 +371,14 @@ std::string WithSectionRenamed(const std::string& text, const char* earlierSecti
         const std::string line = text.substr(start, end - start);
         const size_t lastVisible = line.find_last_not_of("\r\n");
         const std::string body = lastVisible == std::string::npos ? std::string() : line.substr(0, lastVisible + 1);
-        adopted += SameText(Trimmed(body), earlierSectionLine) ? kSectionLine + line.substr(body.size()) : line;
+        size_t afterHeader = 0;
+        if (IsSectionHeader(body, earlierSection, afterHeader))
+        {
+            adopted.text += kSectionLine + line.substr(afterHeader);
+            ++adopted.renamed;
+        }
+        else
+            adopted.text += line;
         start = end;
     }
     return adopted;
@@ -294,12 +394,19 @@ bool WriteWholeFile(const std::string& path, const std::string& text)
     return ok;
 }
 
-bool AdoptSettings(const std::string& earlierIni, const char* earlierSectionLine, const std::string& ini)
+bool AdoptSettings(const std::string& earlierIni, const char* earlierSection, const std::string& ini)
 {
-    std::string text;
-    if (!ReadWholeFile(earlierIni, text))
+    std::string bytes;
+    if (!ReadWholeFile(earlierIni, bytes))
         return false;
-    if (WriteWholeFile(ini, WithSectionRenamed(text, earlierSectionLine)))
+    const IniText earlier = DecodedIni(bytes);
+    const RenamedSections adopted = WithSectionRenamed(earlier.text, earlierSection);
+    if (adopted.renamed == 0)
+    {
+        VF_LOG_ERROR("settings not taken over from %s: it has no [%s] section", earlierIni.c_str(), earlierSection);
+        return false;
+    }
+    if (WriteWholeFile(ini, EncodedIni(adopted.text, earlier.utf16)))
         return true;
     DeleteFileA(ini.c_str());
     VF_LOG_ERROR("settings could not be taken over from %s into %s", earlierIni.c_str(), ini.c_str());
@@ -363,6 +470,27 @@ std::string KeyName(unsigned virtualKey)
             return k.name;
     return "key " + std::to_string(virtualKey);
 }
+
+unsigned ArrivingVirtualKey(const Hotkey& key)
+{
+    const bool arrivesAsCancel = key.ctrl && (key.virtualKey == VK_PAUSE || key.virtualKey == VK_SCROLL);
+    return arrivesAsCancel ? VK_CANCEL : key.virtualKey;
+}
+
+bool HotkeysArriveAlike(const Hotkey& a, const Hotkey& b)
+{
+    return ArrivingVirtualKey(a) == ArrivingVirtualKey(b) && a.ctrl == b.ctrl && a.shift == b.shift && a.alt == b.alt;
+}
+
+Hotkey ReadToggleKey(const std::string& path, const Hotkey& overlayKey)
+{
+    const Hotkey key = ReadHotkey(path, "ToggleKey", kNoHotkey);
+    if (!IsHotkeySet(key) || !HotkeysArriveAlike(key, overlayKey))
+        return key;
+    VF_LOG_ERROR("ToggleKey=%s cannot be told apart from OverlayKey=%s; ToggleKey is off", HotkeyName(key).c_str(),
+                 HotkeyName(overlayKey).c_str());
+    return kNoHotkey;
+}
 }
 
 bool ParseHotkey(const char* text, Hotkey& out)
@@ -390,6 +518,8 @@ bool ParseHotkey(const char* text, Hotkey& out)
 
 std::string HotkeyName(const Hotkey& key)
 {
+    if (!IsHotkeySet(key))
+        return "none";
     std::string name;
     if (key.ctrl)
         name += "Ctrl+";
@@ -398,6 +528,11 @@ std::string HotkeyName(const Hotkey& key)
     if (key.alt)
         name += "Alt+";
     return name + KeyName(key.virtualKey);
+}
+
+bool IsHotkeySet(const Hotkey& key)
+{
+    return key.virtualKey != 0;
 }
 
 bool SameFogSettings(const Config& a, const Config& b)
@@ -422,6 +557,8 @@ std::string SettingChanges(const Config& before, const Config& after)
         add("Overlay", before.overlay ? "1" : "0", after.overlay ? "1" : "0");
     if (!SameHotkey(before.overlayKey, after.overlayKey))
         add("OverlayKey", HotkeyName(before.overlayKey), HotkeyName(after.overlayKey));
+    if (!SameHotkey(before.toggleKey, after.toggleKey))
+        add("ToggleKey", HotkeyName(before.toggleKey), HotkeyName(after.toggleKey));
     ForEachIntSetting([&](const IntSetting& s) {
         if (before.*s.value != after.*s.value)
             add(s.key, std::to_string(before.*s.value), std::to_string(after.*s.value));
@@ -477,8 +614,8 @@ bool ConfigStore::ReloadIfChanged()
     m_stamp = stamp;
     LogSettledEdits();
     ReadKeepingStartupSwitches();
-    if (!LogChanges("settings from LuxVelum.ini"))
-        VF_LOG_INFO("LuxVelum.ini reloaded; no live setting changed");
+    if (!LogChanges("settings from Luxvelum.ini"))
+        VF_LOG_INFO("Luxvelum.ini reloaded; no live setting changed");
     return true;
 }
 
@@ -490,6 +627,7 @@ void ConfigStore::Apply(const Config& edited)
     c.lightStay = m_config.lightStay;
     c.overlay = m_config.overlay;
     c.overlayKey = m_config.overlayKey;
+    c.toggleKey = m_config.toggleKey;
     ClampLiveSettings(c);
     m_config = c;
     LogSetLevel(c.logLevel);
@@ -524,6 +662,9 @@ bool ConfigStore::Save()
         else if (m_config.*s.value != onDisk.*s.value)
             written = WriteSetting(m_path, s.key, m_config.*s.value ? "1" : "0") && written;
     });
+    merged.overlay = onDisk.overlay;
+    merged.overlayKey = onDisk.overlayKey;
+    merged.toggleKey = onDisk.toggleKey;
     m_stamp = FileStamp(m_path);
     if (!written)
     {
@@ -534,7 +675,7 @@ bool ConfigStore::Save()
     m_saved = merged;
     LogSetLevel(merged.logLevel);
     VF_LOG_INFO("settings saved to %s", m_path.c_str());
-    LogChanges("settings from LuxVelum.ini");
+    LogChanges("settings from Luxvelum.ini");
     return true;
 }
 
@@ -543,7 +684,7 @@ void ConfigStore::Revert()
     LogSettledEdits();
     m_stamp = FileStamp(m_path);
     ReadKeepingStartupSwitches();
-    LogChanges("settings reverted to LuxVelum.ini");
+    LogChanges("settings reverted to Luxvelum.ini");
 }
 
 void ConfigStore::ReadKeepingStartupSwitches()
@@ -574,6 +715,7 @@ Config ConfigStore::ReadFile() const
     c.lightStay = ReadInt(p, "LightStay", 1, 0, 1) != 0;
     c.overlay = ReadInt(p, "Overlay", 1, 0, 1) != 0;
     c.overlayKey = ReadHotkey(p, "OverlayKey", c.overlayKey);
+    c.toggleKey = ReadToggleKey(p, c.overlayKey);
     ForEachIntSetting([&](const IntSetting& s) { c.*s.value = ReadInt(p, s.key, c.*s.value, s.lo, s.hi); });
     ForEachFloatSetting([&](const FloatSetting& s) { c.*s.value = ReadFloat(p, s.key, c.*s.value, s.lo, s.hi); });
     ForEachBoolSetting([&](const BoolSetting& s) { c.*s.value = ReadInt(p, s.key, c.*s.value ? 1 : 0, 0, 1) != 0; });
@@ -581,13 +723,12 @@ Config ConfigStore::ReadFile() const
     return c;
 }
 
-const char* AdoptEarlierSettings(const std::string& directory)
+const char* AdoptEarlierSettings(const std::string& directory, const std::string& ini)
 {
-    const std::string ini = directory + kIniName;
     if (GetFileAttributesA(ini.c_str()) != INVALID_FILE_ATTRIBUTES)
         return nullptr;
     for (const EarlierSettings& earlier : kEarlierSettings)
-        if (AdoptSettings(directory + earlier.ini, earlier.sectionLine, ini))
+        if (AdoptSettings(directory + earlier.ini, earlier.section, ini))
             return earlier.ini;
     return nullptr;
 }

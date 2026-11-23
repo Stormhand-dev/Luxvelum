@@ -20,7 +20,7 @@
 
 namespace
 {
-constexpr UINT kWaterPixelConstants = 72;
+constexpr UINT kWaterPixelConstants = 100;
 constexpr DWORD kWaterSamplerStages = 16;
 constexpr UINT kCommonConstants = 9;
 constexpr UINT kShadingFirstConstant = 9;
@@ -994,7 +994,7 @@ bool WaterRenderer::Begin(IDirect3DDevice9* dev, const SceneDepth& depth, const 
     ArmStencilWrites(dev);
     m_in = in;
     m_water = water;
-    m_cfg = cfg;
+    m_cfg = ConfigForPlace(cfg, CameraPlace(in));
     std::fill(std::begin(m_draws), std::end(m_draws), 0u);
     m_armed = true;
     return true;
@@ -1126,6 +1126,8 @@ bool WaterRenderer::SimulateRipples(IDirect3DDevice9* dev, double seconds)
         m_contacts.PlaceFootprints(seconds);
     const WaterRippleSchedule schedule = m_ripples.Schedule(seconds);
     const float centre[2] = {m_in.camTarget[0], m_in.camTarget[1]};
+    static_assert(kWaterRippleStepPixelConstants <= kWaterPixelConstants,
+                  "the water state block restores every constant the ripple step sets");
     WaterRippleDisturbance disturbances[kMaxWaterRippleDisturbances];
     for (int step = 0; step < schedule.steps; ++step)
     {
@@ -1268,6 +1270,8 @@ void WaterRenderer::FillClassConstants(ShadingConstants& c, const WaterPreset& p
     c.rippleWindow = m_rippleWindow;
     c.rippleShape = m_rippleShape;
     c.rippleFade = m_rippleFade;
+    c.glintShadow = {noSun ? 0.0f : Saturate(m_in.celestialShadow.hidden), m_in.celestialShadow.occluderDistance,
+                     0.0f, 0.0f};
     for (int slot = 0; slot < kWaterShadedMaskSlots; ++slot)
     {
         const int32_t mask = preset.masks[slot];
