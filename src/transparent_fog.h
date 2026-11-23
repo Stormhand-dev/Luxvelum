@@ -45,6 +45,7 @@ struct ObjectFog
     float viewDepth = 0.0f;
     float transmittance = 1.0f;
     float scatterPerOpacity[3] = {};
+    float displayOpacity = 0.0f;
 };
 
 struct M2BatchFogArgs

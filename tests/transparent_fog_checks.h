@@ -549,9 +549,63 @@ void CheckObjectFogOnTheViewAxis()
                 fit.colour & 0xFFFFFFu, fittedBehind);
     Check(fitted && ahead.fogs && std::fabs(ahead.viewDepth - kObjectAhead) < 0.01f &&
               std::fabs(ahead.transmittance - reference) < kObjectTransmittanceLimit &&
-              std::fabs(factor - ahead.transmittance) < 0.001f && !fittedBehind,
-          "a see-through model on the view axis takes the volumetric transmittance at its own depth through the "
-          "client's linear fog, and a model behind the camera is left to the screen's line");
+              std::fabs(factor - (1.0f - ahead.displayOpacity)) < 0.001f && !fittedBehind,
+          "a see-through model on the view axis takes the volumetric transmittance at its own depth, through the "
+          "client's linear fog at its own planar depth, and a model behind the camera is left to the screen's line");
+}
+
+float ChannelOf(uint32_t colour, int shift)
+{
+    return static_cast<float>((colour >> shift) & 0xFF) / 255.0f;
+}
+
+float CompositeOnScreen(float scene, float transmittance, float exposedScatter)
+{
+    const float linear = std::pow(scene, 2.2f) * transmittance + exposedScatter;
+    const float knee = std::fmax(0.8f, std::pow(scene, 2.2f));
+    const float span = std::fmax(1.0f - knee, 1e-4f);
+    const float rolled = linear <= knee ? linear : knee + span * (1.0f - std::exp(-(linear - knee) / span));
+    return std::pow(rolled, 1.0f / 2.2f);
+}
+
+void CheckObjectFogMatchesTheLinearComposite()
+{
+    const View v;
+    const FogParams fog = HomogeneousFog(kRegressionDensity, kEmissiveFog);
+    const StockFogFit fit = FitStockFog(fog, v.in, {1.0f, 0.0f});
+    ObjectFog ahead;
+    const bool fitted = FogAtObject(fit, Add(v.eye, {kObjectAhead, 0.0f, 0.0f}), ahead);
+    const int shifts[3] = {16, 8, 0};
+    const float objects[3] = {0.0f, 0.5f, 1.0f};
+    float largest = 0.0f;
+    float largestAtTheEnds = 0.0f;
+    float darkScreenLine = 0.0f;
+    float darkComposite = 0.0f;
+    for (float object : objects)
+        for (int c = 0; c < 3; ++c)
+        {
+            const float exposed = ahead.scatterPerOpacity[c] * (1.0f - ahead.transmittance);
+            const float composite = CompositeOnScreen(object, ahead.transmittance, exposed);
+            const float client = object * (1.0f - ahead.displayOpacity) +
+                                 ChannelOf(ahead.colour, shifts[c]) * ahead.displayOpacity;
+            largest = std::fmax(largest, std::fabs(client - composite));
+            if (object != 0.5f)
+                largestAtTheEnds = std::fmax(largestAtTheEnds, std::fabs(client - composite));
+            if (object == 0.0f && c == 1)
+            {
+                darkComposite = composite;
+                darkScreenLine = ChannelOf(fit.colour, shifts[c]) * (1.0f - ahead.transmittance);
+            }
+        }
+    std::printf("     object fog in gamma: opacity %.3f (volumetric %.3f), colour %06X; largest difference from the "
+                "linear composite over black and white %.3f, over grey %.3f; a black model's green: composite %.3f, "
+                "line colour at the volumetric opacity %.3f\n",
+                ahead.displayOpacity, 1.0f - ahead.transmittance, ahead.colour & 0xFFFFFFu, largestAtTheEnds, largest,
+                darkComposite, darkScreenLine);
+    Check(fitted && largestAtTheEnds < 0.01f && largest < 0.11f && darkScreenLine < darkComposite - 0.05f,
+          "the client's gamma-space lerp with the object's fog matches the composite's linear-light blend over black "
+          "and white within 0.01 and over grey within 0.11, where the volumetric opacity with the plain fog colour "
+          "leaves a black model darker than the fog drawn around it");
 }
 
 void CheckObjectFogNearALamp()
@@ -609,6 +663,7 @@ void CheckStockFogFit(const FogData& classic)
     CheckBatchFogKeepsBlendModeColours();
     CheckFitCarriesTheLocalLightGain();
     CheckObjectFogOnTheViewAxis();
+    CheckObjectFogMatchesTheLinearComposite();
     CheckObjectFogNearALamp();
     CheckObjectPlacement();
 }

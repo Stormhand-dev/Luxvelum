@@ -492,12 +492,17 @@ float ExtendedWindowDepth(const TransmittanceProfile& profile, float nearTransmi
     return kStockFogFitDepth + reach * (extended - kStockFogFitDepth);
 }
 
+float RollOffAbove(float colour, float knee)
+{
+    const float span = std::max(1.0f - knee, kMinHighlightSpan);
+    if (colour <= knee)
+        return colour;
+    return knee + span * (1.0f - std::exp(-(colour - knee) / span));
+}
+
 float RollOffHighlight(float colour)
 {
-    const float span = std::max(1.0f - kHighlightKnee, kMinHighlightSpan);
-    if (colour <= kHighlightKnee)
-        return colour;
-    return kHighlightKnee + span * (1.0f - std::exp(-(colour - kHighlightKnee) / span));
+    return RollOffAbove(colour, kHighlightKnee);
 }
 
 float BeforeClientGlow(float onScreen, float glow)
@@ -523,6 +528,39 @@ uint32_t PackedFogColour(const double* scattered, double opacity, bool linear, c
     }
     return kLightingFogColourAlpha | PackedChannel(colour[0], 16) | PackedChannel(colour[1], 8) |
            PackedChannel(colour[2], 0);
+}
+
+struct GammaBlend
+{
+    float opacity;
+    uint32_t colour;
+};
+
+float LinearBlendOnScreen(float scene, float transmittance, float exposedScatter)
+{
+    const float linear = scene * transmittance + exposedScatter;
+    return std::pow(RollOffAbove(linear, std::max(kHighlightKnee, scene)), 1.0f / kDisplayGamma);
+}
+
+GammaBlend GammaBlendOfLinearFog(const DepthSample& atObject, const StockFogFitLight& light)
+{
+    float overBlack[3];
+    float overWhite[3];
+    float opacity = 0.0f;
+    for (int c = 0; c < 3; ++c)
+    {
+        const float exposed = std::max(light.exposure * atObject.inScatter[c], 0.0f);
+        overBlack[c] = LinearBlendOnScreen(0.0f, atObject.transmittance, exposed);
+        overWhite[c] = LinearBlendOnScreen(1.0f, atObject.transmittance, exposed);
+        opacity += (1.0f - overWhite[c] + overBlack[c]) / 3.0f;
+    }
+    opacity = std::clamp(opacity, 0.0f, 1.0f);
+    float colour[3];
+    for (int c = 0; c < 3; ++c)
+        colour[c] = BeforeClientGlow(std::min(overBlack[c] / std::max(opacity, kMinFogOpacity), 1.0f),
+                                     light.glowToCompensate);
+    return {opacity, kLightingFogColourAlpha | PackedChannel(colour[0], 16) | PackedChannel(colour[1], 8) |
+                         PackedChannel(colour[2], 0)};
 }
 
 uint32_t FittedFogColour(const FitRay* rays, const RaySamples* samples, int rayCount, bool linear,
@@ -624,10 +662,14 @@ bool FitObjectFog(const StockFogFit& fit, const float* world, ObjectFog& out)
     const double scattered[3] = {atObject.inScatter[0], atObject.inScatter[1], atObject.inScatter[2]};
     for (int c = 0; c < 3; ++c)
         out.scatterPerOpacity[c] = atObject.inScatter[c] / opacity;
-    out.fogs = true;
+    const GammaBlend blend = scene.fog.linear
+                                 ? GammaBlendOfLinearFog(atObject, scene.light)
+                                 : GammaBlend{opacity, PackedFogColour(scattered, opacity, false, scene.light)};
+    out.fogs = blend.opacity > kMinFogOpacity;
     out.start = 0.0f;
-    out.end = view[2] / opacity;
-    out.colour = PackedFogColour(scattered, opacity, scene.fog.linear, scene.light);
+    out.end = view[2] / std::max(blend.opacity, kMinFogOpacity);
+    out.colour = blend.colour;
+    out.displayOpacity = blend.opacity;
     return true;
 }
 
