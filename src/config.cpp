@@ -66,7 +66,6 @@ struct BoolSetting
 
 const IntSetting kIntSettings[] = {
     {"Quality", &Config::quality, 1, 3},     {"StockFog", &Config::stockFog, 0, 1},
-    {"SeeThroughFogProbe", &Config::seeThroughFogProbe, 0, 2},
     {"DataMode", &Config::dataMode, 0, 1},   {"ColorSpace", &Config::colorSpace, 0, 1},
     {"DebugView", &Config::debugView, 0, 4}, {"LogLevel", &Config::logLevel, 0, 2},
     {"ClassicPhase", &Config::classicPhase, 0, 1},

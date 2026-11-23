@@ -84,7 +84,6 @@ struct Config
     bool multisampling = true;
     int debugView = 0;
     bool sunMarker = false;
-    int seeThroughFogProbe = 0;
     int logLevel = 1;
     bool water = true;
     int waterQuality = 2;
