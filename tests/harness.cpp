@@ -2742,7 +2742,8 @@ void CheckTheDllUsesTheClientFolders()
     const std::string log = vf_test_log_path();
     wchar_t logPath[MAX_PATH] = {};
     MultiByteToWideChar(CP_ACP, 0, log.c_str(), -1, logPath, MAX_PATH);
-    const std::string started = std::string("Luxvelum ") + kLuxvelumBuildId + " loaded from " + folder +
+    const std::string started = std::string("Luxvelum ") + kLuxvelumVersion + " (" + kLuxvelumBuildId +
+                                ") loaded from " + folder +
                                 "; settings " + folder + "WTF\\Luxvelum.ini, fog data " + folder +
                                 "Data\\Luxvelum\\fogdata.bin, water data " + folder + "Data\\Luxvelum\\waterdata.bin";
     std::printf("     Luxvelum.dll in %s writes %s\n", folder.c_str(), log.c_str());

@@ -41,10 +41,11 @@ fog lights that flickered or went out:
 - **Grain in the fog**: the temporal filter no longer takes the march jitter for a light change, so the dot pattern
   at low quality is filtered away.
 - **Fog in the rain**: where the Forever kit has no storm fog for a light, the clear fog stays when it rains.
-- **Releases**: every push to `reforged-main` publishes the install zip and keeps only the newest build:
+- **Releases**: every push to `reforged-main` publishes the version in `VERSION` as `v<version>` and keeps only the
+  newest release:
   [Luxvelum-Win32.zip](https://github.com/Stormhand-dev/Luxvelum/releases/latest/download/Luxvelum-Win32.zip).
   A push to `reforged-dev` that `reforged-main` does not contain yet publishes a pre-release
-  `build-<next>-<k>-test` for testing the next version, `<k>` counting the test builds since the last release.
+  `v<version>-test.<k>` for testing the next version, `<k>` counting the test builds since the last release.
 
 ## What it draws
 
@@ -1119,29 +1120,34 @@ rebuild an expired download. Pull-request artifacts are builds of GitHub's propo
 `version.dll` loader comes with the licence as a second artifact, `Luxvelum-version-dll-Win32-<commit>`.
 
 On a push to the release branch `reforged-main`, and on a manual run of that branch, a second job publishes the same
-files as a GitHub release `build-<n>` titled `Luxvelum Build-<n> (reforged-main <commit>)` with the assets
-`Luxvelum-Win32.zip` and `Luxvelum-version-dll-Win32.zip` (the optional `version.dll` loader and the licence), which
-need no login to download, and then deletes every other release with its tag, test releases included, so the fork keeps
-only the newest build at `releases/latest/download/Luxvelum-Win32.zip`. `<n>` counts on from the highest `build-<n>`
-release; a rerun for the commit that a `build-<n>` tag already points at uploads both zips to that release again. A
-manual run of `reforged-main` with `refresh` set rebuilds the highest `build-<n>` at the new commit under the same
-`<n>`: it moves the tag to the commit and replaces the title, notes and zips of the release in place, so the release is
-never deleted and keeps its publication date. GitHub may refuse to move a tag with the workflow's `GITHUB_TOKEN` when
-files under `.github/workflows` changed since the tagged commit; a refresh whose tag cannot be moved publishes the
-commit as `build-<n+1>` instead, as a push would, and `build-<n>` is deleted only once `build-<n+1>` exists. A refresh
+files as a GitHub release `v<version>` titled `Luxvelum v<version> (reforged-main <commit>)`, `<version>` being the
+`MAJOR.MINOR.PATCH` in `VERSION`, which the build also compiles into the DLL for the settings window's title and the
+log's first line. The release's notes start with `RELEASE_NOTES.md`, its "What's new", above the install text. Its
+assets are `Luxvelum-Win32.zip`, `Luxvelum-version-dll-Win32.zip` (the optional `version.dll` loader and the licence)
+and `Luxvelum.ini`, the same file as `WTF/Luxvelum.ini` in the zip, attached on its own for the Project Reforged
+Launcher, which installs `Luxvelum.dll` and `Data/Luxvelum/` from the zip and that INI as its settings preset. They
+need no login to download. The job then deletes every other release with its tag, test releases included, so the
+repository keeps only the newest release at `releases/latest/download/Luxvelum-Win32.zip`. A commit that leaves
+`VERSION` at a version released from another commit publishes nothing and fails the job, so each release raises
+`VERSION`; a rerun for the commit that `v<version>` already points at uploads the assets to that release again. A
+manual run of `reforged-main` with `refresh` set rebuilds `v<version>` at the new commit: it moves the tag to the
+commit and replaces the title, notes and assets of the release in place, so the release is never deleted and keeps its
+publication date. GitHub may refuse to move a tag with the workflow's `GITHUB_TOKEN` when files under
+`.github/workflows` changed since the tagged commit; such a refresh fails and leaves the release as it was. A refresh
 uploads the new zip as `Luxvelum-Win32.new.zip` before it moves the tag, then renames the old zip away, gives the new
 one its name and deletes the old one, so the download is missing only between those two renames, never while an upload
 runs; if the upload fails, the release stays as it was. A push whose commit message carries `[skip ci]` runs nothing, so
 a fix can join the current release this way.
 On a push to the development branch `reforged-dev`, and on a manual run of it, a test job deletes every test release
-(`build-<n>-test` or `build-<n>-<k>-test`) and, when `reforged-dev` has commits that `reforged-main` lacks, publishes
-`build-<n+1>-<k>-test` as a pre-release titled `Luxvelum TEST Build-<n+1>-<k> (reforged-dev <commit>)`, which never
-becomes `releases/latest`. `<k>` is one more than the successful runs of the workflow on `reforged-dev` since
-`build-<n>` was published, which a refresh does not change, or one more than the test build it replaces when that is
-higher (so the count goes on after the branch was renamed from `st0ny-dev`), so testers can tell the test builds of one
-candidate apart. The two branches publish in parallel, so the test job looks at the releases again after creating its
-own and deletes it again when `reforged-main` has published `build-<n+1>` meanwhile. A build whose branch has already
-moved on to a newer commit gets no release and deletes nothing; other branches and pull requests publish none.
+(`v<version>-test.<k>`, or `build-<n>-<k>-test` from before the versions) and, when `reforged-dev` has commits that
+`reforged-main` lacks, publishes `v<version>-test.<k>` as a pre-release titled
+`Luxvelum TEST v<version>-test.<k> (reforged-dev <commit>)`, which never becomes `releases/latest`, `<version>` being
+`reforged-dev`'s `VERSION`. `<k>` is one more than the successful runs of the workflow on `reforged-dev` since the
+newest release was published, which a refresh does not change, or one more than the test build of that version it
+replaces when that is higher, so testers can tell the test builds apart. The two branches publish in parallel, so the
+test job checks again after creating its release and deletes it when `reforged-main` has taken the commit meanwhile. A
+build whose branch has already moved on to a newer commit gets no release and deletes nothing; other branches and pull
+requests publish none.
 
 CI uses Windows Server 2022, MSVC 2022 and `fxc` to build Win32 Release, then runs the comment check and the CPU
 harness. The CPU harness exercises the existing data, fog model, local-light/interior, settings persistence (with the
