@@ -85,6 +85,7 @@ constexpr unsigned kProbeFirstFrame = 60;
 constexpr unsigned kInfoLevelProbeLimit = 5;
 constexpr int kProbeGridSide = 5;
 constexpr UINT kProbePoints = kProbeGridSide * kProbeGridSide;
+constexpr UINT kProbeRows = 2;
 constexpr float kRayFalloff = 8.0f;
 constexpr float kRayThreshold = 0.12f;
 constexpr float kRayStep = 0.075f;
@@ -1045,8 +1046,8 @@ bool Renderer::EnsureDepthProbe(IDirect3DDevice9* dev)
         return false;
     const bool ready =
         (m_probe || SUCCEEDED(dev->CreatePixelShader(reinterpret_cast<const DWORD*>(g_ps_probe), &m_probe))) &&
-        (m_probeTarget || CreateTarget(dev, kProbePoints, 1, D3DFMT_A32B32G32R32F, &m_probeTarget)) &&
-        (m_probeReadback || SUCCEEDED(dev->CreateOffscreenPlainSurface(kProbePoints, 1, D3DFMT_A32B32G32R32F,
+        (m_probeTarget || CreateTarget(dev, kProbePoints, kProbeRows, D3DFMT_A32B32G32R32F, &m_probeTarget)) &&
+        (m_probeReadback || SUCCEEDED(dev->CreateOffscreenPlainSurface(kProbePoints, kProbeRows, D3DFMT_A32B32G32R32F,
                                                                         D3DPOOL_SYSTEMMEM, &m_probeReadback,
                                                                         nullptr))) &&
         (m_probeCopied || SUCCEEDED(dev->CreateQuery(D3DQUERYTYPE_EVENT, &m_probeCopied)));
@@ -1066,7 +1067,7 @@ void Renderer::IssueDepthProbe(IDirect3DDevice9* dev, IDirect3DTexture9* depthTe
     if (!EnsureDepthProbe(dev))
         return;
     SetTarget(dev, m_probeTarget);
-    D3DVIEWPORT9 probeVp = {0, 0, kProbePoints, 1, 0.0f, 1.0f};
+    D3DVIEWPORT9 probeVp = {0, 0, kProbePoints, kProbeRows, 0.0f, 1.0f};
     dev->SetViewport(&probeVp);
     dev->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
     dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
@@ -1112,6 +1113,8 @@ void Renderer::LogFinishedDepthProbe()
         return;
     }
     const auto* samples = static_cast<const ProbeSample*>(locked.pBits);
+    const auto* radiance =
+        reinterpret_cast<const Float4*>(static_cast<const unsigned char*>(locked.pBits) + locked.Pitch);
     VF_LOG_INFO("depth probe %u: day %.4f, viewport depth %.4f..%.4f, world depth up to %.7f; per point raw depth / yd "
                 "/ fog opacity (w world, f beyond the far clip, s sky)",
                 probe.attempt, probe.dayFraction, probe.viewportMinZ, probe.viewportMaxZ, probe.deepestWorldDepth);
@@ -1126,6 +1129,16 @@ void Renderer::LogFinishedDepthProbe()
                                   sample.viewDepthYards, sample.fogOpacity, DepthClassLetter(sample.depthClass));
         }
         VF_LOG_INFO("  row %d:%s", row, line);
+        char scatter[256] = {};
+        int written = 0;
+        for (int col = 0; col < kProbeGridSide; ++col)
+        {
+            const Float4& fog = radiance[row * kProbeGridSide + col];
+            const float opacity = std::max(fog.w, 1e-4f);
+            written += std::snprintf(scatter + written, sizeof(scatter) - written, "  %.3f %.3f %.3f",
+                                     fog.x / opacity, fog.y / opacity, fog.z / opacity);
+        }
+        VF_LOG_INFO("  row %d in-scatter per opacity:%s", row, scatter);
     }
     m_probeReadback->UnlockRect();
 }

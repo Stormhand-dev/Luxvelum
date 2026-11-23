@@ -430,9 +430,11 @@ void LogObjectFogsOfTheFrame()
     for (int i = 0; i < frame.objectCount && i < kLoggedObjects; ++i)
     {
         const CachedObjectFog& o = frame.objects[i];
-        VF_LOG_DEBUG("    model %08X: %s, view depth %.1f, transmittance %.3f, colour %06X, line %.1f..%.1f",
+        VF_LOG_DEBUG("    model %08X: %s, view depth %.1f, transmittance %.3f, colour %06X, line %.1f..%.1f, "
+                     "in-scatter per opacity %.3f %.3f %.3f",
                      static_cast<unsigned>(o.model), o.fitted ? "own fog" : "screen line", o.fog.viewDepth,
-                     o.fog.transmittance, o.fog.colour & 0xFFFFFFu, o.fog.start, o.fog.end);
+                     o.fog.transmittance, o.fog.colour & 0xFFFFFFu, o.fog.start, o.fog.end,
+                     o.fog.scatterPerOpacity[0], o.fog.scatterPerOpacity[1], o.fog.scatterPerOpacity[2]);
     }
 }
 

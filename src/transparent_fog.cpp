@@ -622,6 +622,8 @@ bool FitObjectFog(const StockFogFit& fit, const float* world, ObjectFog& out)
     if (opacity <= kMinFogOpacity)
         return true;
     const double scattered[3] = {atObject.inScatter[0], atObject.inScatter[1], atObject.inScatter[2]};
+    for (int c = 0; c < 3; ++c)
+        out.scatterPerOpacity[c] = atObject.inScatter[c] / opacity;
     out.fogs = true;
     out.start = 0.0f;
     out.end = view[2] / opacity;
