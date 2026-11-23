@@ -3,6 +3,7 @@
 #include "client_ripple_sprites.h"
 #include "config.h"
 #include "d3d9_wrap.h"
+#include "dxvk_vendor.h"
 #include "engine.h"
 #include "fog_data.h"
 #include "fog_data_choice.h"
@@ -104,6 +105,7 @@ void Attach(HMODULE module)
         VF_LOG_INFO("EngineHooks=0; the client runs unmodified");
         return;
     }
+    ReportAmdToDxvkWhenAsked(cfg.dxvkAmdVendor, cfg.multisampling);
     engine::ChooseCurrentMap();
     engine::ChooseCameraFocus();
     const bool engineHooks = InstallEngineHooks();

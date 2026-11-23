@@ -12,7 +12,6 @@ enum class DepthCopyMethod
 constexpr int kDepthCopyMethodFromDriver = -1;
 
 const char* DepthCopyMethodName(DepthCopyMethod method);
-bool CodeLoadedFromSystemFolder(const void* code);
 
 struct DepthCopyProbe
 {

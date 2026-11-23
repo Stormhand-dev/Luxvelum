@@ -431,7 +431,7 @@ bool DrawAntialiasing(Config& c)
                           "time the game resets its display, for example after changing Multisampling or the "
                           "resolution in its Video options");
     changed |= Toggle("Report AMD to DXVK", c.dxvkAmdVendor,
-                      "NVIDIA card with DXVK only: DXVK offers the RESZ depth copy only to AMD and Intel cards, so "
+                      "For an NVIDIA card behind DXVK: DXVK offers the RESZ depth copy only to AMD and Intel cards, so "
                       "Luxvelum asks it to report AMD (d3d9.customVendorId = 1002) and multisampling becomes "
                       "available, as that line in dxvk.conf would do. The game and DXVK then see an AMD card. "
                       "Takes effect after restarting the game");

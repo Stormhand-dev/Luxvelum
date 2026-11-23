@@ -10,8 +10,7 @@ struct DxvkVendorInputs
 {
     bool asked = false;
     bool multisampling = false;
-    bool systemD3D9 = false;
-    bool nvidiaGpu = false;
+    bool d3d9Loaded = false;
     std::string dxvkConfig;
 };
 
@@ -22,9 +21,8 @@ struct DxvkVendorDecision
     const char* reason = "";
 };
 
-bool PciDeviceIdIsNvidia(const char* deviceId);
 bool DxvkConfigSetsVendor(const std::string& dxvkConfig);
 std::string DxvkConfigReportingAmd(const std::string& dxvkConfig);
 DxvkVendorDecision DecideDxvkVendor(const DxvkVendorInputs& inputs);
 
-void ReportAmdToDxvkWhenAsked(bool asked, bool multisampling, bool systemD3D9);
+void ReportAmdToDxvkWhenAsked(bool asked, bool multisampling);

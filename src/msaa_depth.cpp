@@ -550,11 +550,6 @@ DepthCopyProbe ProbeDriver(IDirect3D9* d3d, UINT adapter, D3DDEVTYPE type)
 }
 }
 
-bool CodeLoadedFromSystemFolder(const void* code)
-{
-    return LoadedFromSystemFolder(code);
-}
-
 const char* DepthCopyMethodName(DepthCopyMethod method)
 {
     switch (method)

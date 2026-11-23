@@ -9,7 +9,6 @@
 
 namespace
 {
-constexpr const char* kNvidiaPciVendor = "VEN_10DE";
 constexpr DWORD kMaxDxvkConfigLength = 4096;
 
 bool ContainsIgnoringCase(const std::string& text, const char* part)
@@ -29,20 +28,6 @@ bool ContainsIgnoringCase(const std::string& text, const char* part)
     return false;
 }
 
-bool DesktopGpuIsNvidia()
-{
-    DISPLAY_DEVICEA device = {};
-    device.cb = sizeof(device);
-    for (DWORD index = 0; EnumDisplayDevicesA(nullptr, index, &device, 0); ++index)
-    {
-        if ((device.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) && PciDeviceIdIsNvidia(device.DeviceID))
-            return true;
-        device = {};
-        device.cb = sizeof(device);
-    }
-    return false;
-}
-
 std::string CurrentDxvkConfig()
 {
     std::string value(kMaxDxvkConfigLength, '\0');
@@ -50,11 +35,6 @@ std::string CurrentDxvkConfig()
     value.resize(length < kMaxDxvkConfigLength ? length : 0);
     return value;
 }
-}
-
-bool PciDeviceIdIsNvidia(const char* deviceId)
-{
-    return deviceId && ContainsIgnoringCase(deviceId, kNvidiaPciVendor);
 }
 
 bool DxvkConfigSetsVendor(const std::string& dxvkConfig)
@@ -75,26 +55,21 @@ DxvkVendorDecision DecideDxvkVendor(const DxvkVendorInputs& inputs)
         return {false, "", "DxvkAmdVendor=0"};
     if (!inputs.multisampling)
         return {false, "", "Multisampling=0"};
-    if (inputs.systemD3D9)
-        return {false, "", "d3d9.dll is the system copy, not DXVK"};
-    if (!inputs.nvidiaGpu)
-        return {false, "", "the desktop's graphics card is not NVIDIA, so DXVK offers RESZ already"};
+    if (inputs.d3d9Loaded)
+        return {false, "", "d3d9.dll was loaded before Luxvelum, so DXVK has read its settings already"};
     if (DxvkConfigSetsVendor(inputs.dxvkConfig))
         return {false, "", "DXVK_CONFIG already sets d3d9.customVendorId"};
     return {true, DxvkConfigReportingAmd(inputs.dxvkConfig), ""};
 }
 
-void ReportAmdToDxvkWhenAsked(bool asked, bool multisampling, bool systemD3D9)
+void ReportAmdToDxvkWhenAsked(bool asked, bool multisampling)
 {
-    static bool decided = false;
-    if (decided || !asked)
+    if (!asked)
         return;
-    decided = true;
     DxvkVendorInputs inputs;
     inputs.asked = asked;
     inputs.multisampling = multisampling;
-    inputs.systemD3D9 = systemD3D9;
-    inputs.nvidiaGpu = DesktopGpuIsNvidia();
+    inputs.d3d9Loaded = GetModuleHandleA("d3d9.dll") != nullptr;
     inputs.dxvkConfig = CurrentDxvkConfig();
     const DxvkVendorDecision decision = DecideDxvkVendor(inputs);
     if (!decision.reportAmd)
@@ -107,6 +82,7 @@ void ReportAmdToDxvkWhenAsked(bool asked, bool multisampling, bool systemD3D9)
         VF_LOG_ERROR("DXVK vendor: setting %s failed with Windows error %lu", kDxvkConfigVariable, GetLastError());
         return;
     }
-    VF_LOG_INFO("DXVK vendor: %s=\"%s\" before DXVK starts, so it reports AMD and offers RESZ for multisampling",
+    VF_LOG_INFO("DXVK vendor: %s=\"%s\" before d3d9.dll loads, so DXVK reports AMD and offers RESZ for "
+                "multisampling",
                 kDxvkConfigVariable, decision.dxvkConfig.c_str());
 }
