@@ -394,13 +394,16 @@ yet and no `d3d9.customVendorId` in `DXVK_CONFIG`, it appends that option to the
 reads with the same syntax as `dxvk.conf`; the log names the decision. It is off by default, since the game and DXVK
 then see an AMD card. Setting the variable just before the first `Direct3DCreate9` was too late: DXVK 3.1.1 had read its
 settings already, its log named only `dxvk.conf` and the adapter kept vendor `0x10DE` (owner's RTX 4060, 2026-11-23).
-The multisampled depth is created as D24S8, since the game's D24X8 has no stencil for the water tags and the silhouette
-split, and a self-test copies two known depths before the game sees the device; if it fails the device stays
-single-sampled. The depth is copied before the water pass, after the water surfaces and before the fog, one sample per
-pixel; scene copies become resolves, and water is tagged and shaded per sample. Where a pixel's 3×3 copied depths are
-not planar, a pass marks its near and far samples in the stencil with an `oDepth` halfway between them (clamped to the
-viewport, so the split uses MinZ 0 and MaxZ 1), and the composite fogs each side at its own depth, so a pixel half tree
-and half sky blends both fogs by coverage.
+Set while Luxvelum attaches, it works there: DXVK's log reads `Found config env: d3d9.customVendorId = 1002`, the
+adapter reports vendor `0x1002` with `aticfx32.dll`, the game offers its Multisampling choices and 4x is kept with
+`RESZ` copying the depth, with the line in `dxvk.conf` commented out (same day, TEST Build-2-34). The multisampled depth
+is created as D24S8, since the game's D24X8 has no stencil for the water tags and the silhouette split, and a self-test
+copies two known depths before the game sees the device; if it fails the device stays single-sampled. The depth is
+copied before the water pass, after the water surfaces and before the fog, one sample per pixel; scene copies become
+resolves, and water is tagged and shaded per sample. Where a pixel's 3×3 copied depths are not planar, a pass marks its
+near and far samples in the stencil with an `oDepth` halfway between them (clamped to the viewport, so the split uses
+MinZ 0 and MaxZ 1), and the composite fogs each side at its own depth, so a pixel half tree and half sky blends both
+fogs by coverage.
 
 **View distance.** Ascension's Extensions.dll detours the far-clip clamp (`0x780770`) and caps maps 0, 1, 530
 and 571 at 791.66 yd; the engine allows 1583.33 and instances use it. With `FarClipMax` set, the DLL's calls
@@ -1393,9 +1396,9 @@ game: both are off when their keys are missing, and the shipped INI keeps `Forev
   through doorways may differ.
 - The `gxApi d3d9ex` path is not wrapped (fog and the settings window stay off there). The settings window also
   needs a fog device, so it is missing when INTZ depth is unsupported.
-- Multisampling is harness-checked on the RTX 2060 (NVAPI) and tested in game on the Steam Deck
-  (`RESZ` through DXVK, see above), on the owner's RTX 4060 through NVAPI with the system `d3d9.dll` and through
-  `RESZ` behind DXVK 3.0 with `d3d9.customVendorId = 1002` (2026-11-23); alpha-tested foliage stays jagged.
+- Multisampling is harness-checked on the RTX 2060 (NVAPI) and tested in game on the Steam Deck (`RESZ` through DXVK,
+  see above), on the owner's RTX 4060 through NVAPI with the system `d3d9.dll` and through `RESZ` behind DXVK 3.1.1 with
+  `d3d9.customVendorId = 1002` in `dxvk.conf` or from `DxvkAmdVendor=1` (2026-11-23); alpha-tested foliage stays jagged.
 - The silhouette split sees one copied depth sample per pixel, so sub-pixel geometry it misses takes the far fog.
 - The distance fog (`FarFog`, maps without Classic data) has no modern counterpart: it stands in for the stock
   fog up to the 3.3.5 far clip, which is far shorter than the modern client's.
