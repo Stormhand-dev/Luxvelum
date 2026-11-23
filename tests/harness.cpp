@@ -6,6 +6,7 @@
 #include "client_map.h"
 #include "client_ripple_sprites.h"
 #include "config.h"
+#include "dxvk_vendor.h"
 #include "engine.h"
 #include "fog_data.h"
 #include "fog_data_choice.h"

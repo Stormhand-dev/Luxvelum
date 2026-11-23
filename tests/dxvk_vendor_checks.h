@@ -1,7 +1,5 @@
 #pragma once
 
-#include "dxvk_vendor.h"
-
 namespace dxvk_vendor_checks
 {
 DxvkVendorInputs NvidiaBehindDxvk()
