@@ -440,8 +440,13 @@ no fog for them. `tools/convert_client_lights.py` adds them to `fogdata.bin` fro
 folder or zip):
 
 ```powershell
-python tools/convert_client_lights.py data/fogdata.bin <DBFilesClient folder or zip> data/fogdata.bin
+python tools/convert_client_lights.py data/fogdata.bin <DBFilesClient with darker nights> data/fogdata.bin
+python tools/convert_client_lights.py data/fogdata.bin <DBFilesClient without darker nights> `
+    data/fogdata-without-darker-nights.bin
 ```
+
+The tool drops the lights, light params and zone lights an earlier run added before it adds them again, so running it
+on its own output gives the same file.
 
 Every client light on a map without Classic lights becomes a light of its own (id + 1000000), placed as the client
 places it: world X = 17066.666 − z/36, Y = 17066.666 − x/36, Z = y/36, falloff /36, a light at the origin without
@@ -579,18 +584,20 @@ it in the other, so the sunless decision is the same in both (2026-11-19, the ow
 `LightIntBand_sem_darker_nights`). Fog converted from one variant is therefore about a third too dark or too bright at
 night for a client with the other. `tools/convert_client_lights.py` writes 64 band probes into the file it makes: id,
 key 0 and colour of every n-th band (by id) whose first key is at midnight with a colour other than black, from the
-`LightIntBand` it converted from. Of the darker variant's 64 probes one matches the other variant. With the variants
-converted into `fogdata.bin` and further `fogdata*.bin` files in `Data\Luxvelum`, Luxvelum reads the probes of every
-such file at start-up, scores each against the client's loaded `LightIntBand` at the first world frame after the table
-is loaded, and loads the file whose probes match best if more than half match; otherwise, and with a single file,
-`fogdata.bin` stays. The log names every file's score. The client keeps the table as a `WowClientDB` at `0x00AF49BC`,
-vtable `0x00A419E0`; its exit destructor at `0x009DCB90` installs that vtable and releases the table through
-`0x007EB1B0`. The loader at `0x007EB540` (vtable slot 2) checks the file's 34 fields of 0x88 bytes
-(`DBFilesClient\LightIntBand.dbc` from `0x008BE100`), keeps the record count at `+0x08`, sets `+0x0C` to 0 and `+0x10`
-to `0x0FFFFFFF` before the records come in, and marks the table loaded at `+0x04`. Its record lookup at `0x007EB210`
-takes an id between `+0x10` (lowest) and `+0x0C` (highest) and reads the record pointer from the index at `+0x20`,
-`[+0x20 + (id − lowest)·4]`; a record is the file's: id, key count, 16 times, 16 colours at `+0x48`. The fog code calls
-it at `0x007EBF5D` with `ecx = 0x00AF49BC` and the id `params·18 − 17 + band`, the converter's numbering.
+`LightIntBand` it converted from. Of the darker variant's 64 probes one matches the other variant. The package ships
+the darker variant as `fogdata.bin` and the other as `fogdata-without-darker-nights.bin` (2026-11-22, both from the
+owner's tables of 2026-11-18). With the variants converted into `fogdata.bin` and further `fogdata*.bin` files in
+`Data\Luxvelum`, Luxvelum reads the probes of every such file at start-up, scores each against the client's loaded
+`LightIntBand` at the first world frame after the table is loaded, and loads the file whose probes match best if more
+than half match; otherwise, and with a single file, `fogdata.bin` stays. The log names every file's score. The client
+keeps the table as a `WowClientDB` at `0x00AF49BC`, vtable `0x00A419E0`; its exit destructor at `0x009DCB90` installs
+that vtable and releases the table through `0x007EB1B0`. The loader at `0x007EB540` (vtable slot 2) checks the file's 34
+fields of 0x88 bytes (`DBFilesClient\LightIntBand.dbc` from `0x008BE100`), keeps the record count at `+0x08`, sets
+`+0x0C` to 0 and `+0x10` to `0x0FFFFFFF` before the records come in, and marks the table loaded at `+0x04`. Its record
+lookup at `0x007EB210` takes an id between `+0x10` (lowest) and `+0x0C` (highest) and reads the record pointer from the
+index at `+0x20`, `[+0x20 + (id − lowest)·4]`; a record is the file's: id, key count, 16 times, 16 colours at `+0x48`.
+The fog code calls it at `0x007EBF5D` with `ecx = 0x00AF49BC` and the id `params·18 − 17 + band`, the converter's
+numbering.
 
 ## Forever water data
 
