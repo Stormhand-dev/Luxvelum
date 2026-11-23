@@ -1015,8 +1015,8 @@ id with the zone's name under `[Zones]`. The shipped halos, the owner's tuning, 
 every release replaces and Luxvelum never writes; the player's own go to `WTF\Luxvelum-zones.ini` when a slider is let
 go, which no package contains, and win over the shipped ones for the zones they list. A zone neither lists keeps 1;
 **Reset this zone** removes the player's own entry and falls back to the shipped halo. The section and the log name the
-source (`shipped`, `your own`, `not listed`). Before a release the owner's own entries are folded into `data/zones.ini`,
-so the players' copies of the shipped halos follow his corrections while their own edits stay. The halo follows the zone
+source (`shipped`, `your own`, `not listed`). The owner's own entries are folded into `data/zones.ini` by
+`tools/fold_zone_halos.py`, his values winning, so the players' copies of the shipped halos follow his corrections while their own edits stay. The halo follows the zone
 the map shows (Booty Bay belongs to Stranglethorn Vale), so it does not depend on which Classic light covers the place:
 Redridge has none of its own and takes Eastern Kingdoms' global light, which a per-light factor would have shared with
 the Badlands, Arathi and the sea. Crossing into another zone fades the factors over about two seconds (time constant 0.6
