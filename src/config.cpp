@@ -126,6 +126,7 @@ const FloatSetting kWaterFloatSettings[] = {
     {"WaterWind", &Config::waterWind, 0.5f, 10.0f},
     {"WaterFoam", &Config::waterFoam, 0.0f, 2.0f},
     {"WaterReflections", &Config::waterReflections, 0.0f, 2.0f},
+    {"WaterReflectionDistortion", &Config::waterReflectionDistortion, 0.0f, 1.0f},
     {"WaterSpecular", &Config::waterSpecular, 0.0f, 4.0f},
     {"WaterMoonGlint", &Config::waterMoonGlint, 0.0f, 10.0f},
     {"WaterClarity", &Config::waterClarity, 0.25f, 4.0f},

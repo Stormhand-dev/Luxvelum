@@ -168,6 +168,11 @@ float InverseTileCount()
     return cWaveControl.x;
 }
 
+float ReflectionDistortion()
+{
+    return cWaveControl.y;
+}
+
 float WaterClassIndex()
 {
     return cWaveControl.z;

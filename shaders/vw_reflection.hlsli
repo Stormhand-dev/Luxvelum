@@ -9,6 +9,11 @@ float3 ReflectedDirection(float3 V, float3 N)
     return float3(r.xy, abs(r.z));
 }
 
+float3 ReflectionRayNormal(float2 slope)
+{
+    return normalize(float3(-slope * ReflectionDistortion(), 1));
+}
+
 float3 SkyColour(float elevation)
 {
     float3 colour = lerp(cSkyHorizon.rgb, cSkyLowerBand.rgb, smoothstep(0, kSkyLowerBandElevation, elevation));
@@ -28,6 +33,8 @@ static const float kReflectionRelativeThickness = 0.05;
 static const float kVerticalFadeStart = 0.9;
 static const float kVerticalFadeRate = 10;
 static const float kNoReflectionHit = 2;
+static const float kSolidHitMargin = 0.5;
+static const float kAwayFromCameraFadeEnd = 0.1;
 
 struct ReflectionRay
 {
@@ -85,6 +92,7 @@ float4 TraceScreenReflection(WaterPixel w, float2 pixel, float3 R, out float2 hi
     float previous = 0;
     float front = 0;
     float behind = kNoReflectionHit;
+    float margin = 0;
     [loop] for (int step = 1; step <= kReflectionSteps; ++step)
     {
         [branch] if (behind == kNoReflectionHit)
@@ -93,6 +101,7 @@ float4 TraceScreenReflection(WaterPixel w, float2 pixel, float3 R, out float2 hi
             float sceneZ = CopiedViewDepth(sSceneDepth, RayUv(ray, s));
             float thickness = max(kReflectionThicknessYards, sceneZ * kReflectionRelativeThickness);
             bool crossed = RayViewZ(ray, s) > sceneZ && RayViewZ(ray, previous) < sceneZ + thickness;
+            margin = crossed ? (RayViewZ(ray, previous) - sceneZ) / thickness : margin;
             front = crossed ? previous : front;
             behind = crossed ? s : behind;
             previous = s;
@@ -109,7 +118,10 @@ float4 TraceScreenReflection(WaterPixel w, float2 pixel, float3 R, out float2 hi
     }
     float2 uv = RayUv(ray, behind);
     hitUv = uv;
-    float fade = saturate(1 - saturate((max(uv.y, 1 - uv.y) - kVerticalFadeStart) * kVerticalFadeRate));
+    float edgeFade = saturate(1 - saturate((max(uv.y, 1 - uv.y) - kVerticalFadeStart) * kVerticalFadeRate));
+    float marginFade = 1 - smoothstep(kSolidHitMargin, 1, margin);
+    float directionFade = smoothstep(kMinReflectionViewZ, kAwayFromCameraFadeEnd, viewDirection.z);
+    float fade = edgeFade * marginFade * directionFade;
     return float4(GammaToLinear(tex2Dlod(sSceneColour, float4(uv, 0, 0)).rgb), fade);
 }
 #else

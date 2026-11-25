@@ -374,6 +374,15 @@ yields slopes, slope variance and a persistent foam state per tile. The shading 
 unknown sun lookup table is replaced by a GGX lobe and its reflection probe by a screen-space march against the
 pre-water copies. Frames without queued water skip the pass entirely.
 
+**Reflection rays.** The reflection ray leaves the surface along a normal whose wave slope is scaled by
+`WaterReflectionDistortion` (shipped 0.35), while the Fresnel weight, the roughness and the sun's glint keep the full
+normal. With the full slope (1, the behaviour before 2026-11-25) neighbouring pixels of rough water sent their rays to
+unrelated places, so the scene's colour and the sky fallback alternated pixel by pixel: the owner's Booty Bay
+screenshots of 2026-11-25 showed the harbour lamps' orange broken into specks with cyan sky between them, stronger at
+higher `WaterReflections`. A hit also fades instead of switching: it weakens once the ray's step before the hit
+already lay behind the scene by more than half the thickness allowance (a ray grazing past a post), and as the ray
+turns parallel to the screen.
+
 **Ripples.** Units in the water drive Forever's local displacement recurrence, `next = 0.97·edge·(0.5·(L + D + R +
 U) − C.g)`, output `(next, C.r)` (R the height, G the previous one, edge `saturate(16·min(u, 1 − u, v, 1 − v))`), on
 a G16R16F ping-pong map that follows the camera target by whole texels. Every step holds the footprint of each unit
@@ -1351,6 +1360,7 @@ choice, also `ClassicPhase=1` and `Temporal=0.97`, which ends the sky dithering 
 | `WaterWaves` | 1 | Wave height 0..2; 0 = flat water |
 | `WaterWind` | 2 | Wind driving the waves, 0.5..10 |
 | `WaterFoam`, `WaterReflections` | 1, 1 | Foam and reflection strength 0..2 |
+| `WaterReflectionDistortion` | 0.35 | How far the wave slope bends the reflection rays 0..1; 0 = a mirror, 1 = the full wave normal |
 | `WaterSpecular` | 1 | Sun or moon glint 0..4 |
 | `WaterMoonGlint` | 6 | The moon's glint 0..10, on top of `WaterSpecular`: the night's direct light the water is lit by is dim (and scaled by 0.35), while the moon's disc is bright, so at 1 the moon's path on the lake was barely visible (owner, Mulgore, 2026-11-24) |
 | `WaterClarity` | 1 | How far you see into the water 0.25..4 |

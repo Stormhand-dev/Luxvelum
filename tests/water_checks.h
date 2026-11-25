@@ -60,6 +60,8 @@ constexpr UINT kMirroredShoreRows = 8;
 constexpr int kShoreColourTolerance = 3;
 constexpr float kMaxShoreReflectionFraction = 0.02f;
 constexpr float kRoughTileAmplitude = 30000.0f;
+constexpr float kRippledReflectionDistortion = 1.0f;
+constexpr float kMaxCalmReflectionGrainRatio = 0.75f;
 constexpr float kRoughTileWindMultiplier = 3.0f;
 constexpr float kFoamEverywhereRange = 10000.0f;
 constexpr float kDimFoamTint = 0.25f;
@@ -2163,6 +2165,68 @@ void CheckGrazingReflectionsMissTheShore(Harness& h, const Config& base, const s
     AssignWaterData(MakeSyntheticWaterData());
 }
 
+double ReflectionGrain(const Image& mask, const Image& reflected)
+{
+    double difference = 0.0;
+    size_t pairs = 0;
+    for (UINT y = 0; y < mask.h; ++y)
+        for (UINT x = 1; x < mask.w; ++x)
+        {
+            if (!IsMaskPixel(mask, x - 1, y) || !IsMaskPixel(mask, x, y))
+                continue;
+            const unsigned char* left = reflected.At(x - 1, y);
+            const unsigned char* right = reflected.At(x, y);
+            for (int channel = 0; channel < 3; ++channel)
+                difference += std::abs(left[channel] - right[channel]);
+            ++pairs;
+        }
+    return pairs ? difference / static_cast<double>(pairs) : 0.0;
+}
+
+void CheckCalmReflectionsAreLessGrainy(Harness& h, const Config& base, const std::wstring& outDir)
+{
+    SyntheticWaterData rough = MakeSyntheticWaterData();
+    for (WaterFftTile& tile : rough.tiles)
+    {
+        tile.amplitude = kRoughTileAmplitude;
+        tile.windMultiplier = kRoughTileWindMultiplier;
+    }
+    const bool assigned = AssignWaterData(rough);
+    BasinClient client(h, DefaultWaterView());
+    Config reflection = WaterConfig(base);
+    reflection.waterDebugView = kReflectionDebugView;
+    reflection.density = 0.0f;
+    vf_test_set_config(&reflection);
+    WaterFrame mask;
+    mask.calls = WaterCalls::None;
+    mask.opaqueMask = true;
+    const WaterFrameResult water = client.Render(mask);
+    WaterFrame pass;
+    const float distortions[] = {kRippledReflectionDistortion, Config().waterReflectionDistortion, 0.0f};
+    double grain[3] = {};
+    bool began = true;
+    for (int i = 0; i < 3; ++i)
+    {
+        reflection.waterReflectionDistortion = distortions[i];
+        vf_test_set_config(&reflection);
+        const WaterFrameResult reflected = client.Render(pass);
+        began = began && reflected.began;
+        grain[i] = ReflectionGrain(water.image, reflected.image);
+        if (i == 1)
+            SaveImage(outDir, L"water-calm-reflection", reflected.image);
+    }
+    std::printf("     reflection grain between neighbouring water pixels: %.1f at distortion %.2f, %.1f at %.2f, "
+                "%.1f at %.2f\n",
+                grain[0], distortions[0], grain[1], distortions[1], grain[2], distortions[2]);
+    Check(assigned && began && grain[0] > 0.0 && grain[1] <= grain[0] * kMaxCalmReflectionGrainRatio &&
+              grain[2] <= grain[1],
+          "with WaterReflectionDistortion below 1, rough waves bend the reflection rays less and the reflections "
+          "change less from one water pixel to the next");
+    const Config on = WaterConfig(base);
+    vf_test_set_config(&on);
+    AssignWaterData(MakeSyntheticWaterData());
+}
+
 SyntheticWaterData FoamCoveredLake(float tint)
 {
     SyntheticWaterData data = MakeSyntheticWaterData();
@@ -2492,6 +2556,7 @@ void CheckWaterPass(Harness& h, const std::wstring& outDir, const std::string& w
     CheckWaterFollowsTheDirectLight(h, base);
     CheckHiddenLightDropsTheGlint(h, base);
     CheckGrazingReflectionsMissTheShore(h, base, outDir);
+    CheckCalmReflectionsAreLessGrainy(h, base, outDir);
     CheckFoamTintsAreLinear(client, base);
     CheckSunsetFoamStaysBelowLitGround(h, base);
     CheckEndReportsWhatItShaded(h, client, base);
