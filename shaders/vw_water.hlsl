@@ -64,7 +64,7 @@ float4 main(float2 pixelIndex : VPOS) : COLOR0
     float3 foam = FoamLight(N, waves.foam.x) * foamAlbedo.rgb + inscatter;
     float3 colour = lerp(water, foam, foamAlbedo.a);
 
-    float3 R = ReflectedDirection(V, N);
+    float3 R = ReflectedDirection(V, ReflectionRayNormal(waves.moments.xy));
     float2 hitUv;
     float4 screenReflection = TraceScreenReflection(w, pixel, R, hitUv);
     float3 sky = 0;

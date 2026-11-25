@@ -184,7 +184,15 @@ void CheckDepthProbeAndGpuTimeLog(Harness& h, Vec3 eye, Vec3 at)
           "the frame summary reports the fog's GPU time from timestamp queries");
 
     probe.dev->Release();
+    const size_t beforeClose = ReadText(FogDllLog()).size();
     DestroyWindow(probe.window);
+    const bool attached = HasLine(LogWrittenSince(logStart), "overlay attached to window");
+    const bool closedLogged = HasLine(LogWrittenSince(beforeClose), kGameWindowClosedLine);
+    std::printf("     overlay attached %d, \"%s\" logged when the window closed %d\n", attached ? 1 : 0,
+                kGameWindowClosedLine, closedLogged ? 1 : 0);
+    Check(!attached || closedLogged,
+          "closing the game window the overlay is attached to logs that the game window closed, so an install can "
+          "tell a closed client from one still open");
     vf_test_set_config(&saved);
 }
 

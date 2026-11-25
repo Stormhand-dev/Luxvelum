@@ -92,7 +92,9 @@ struct Config
     float waterWind = 2.0f;
     float waterFoam = 1.0f;
     float waterReflections = 1.0f;
+    float waterReflectionWaviness = 0.35f;
     float waterSpecular = 1.0f;
+    float waterMoonGlint = 6.0f;
     float waterClarity = 1.0f;
     float waterZoneColors = 0.5f;
     float waterRipples = 0.5f;

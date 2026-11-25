@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "d3d9_wrap.h"
+#include "game_window_log.h"
 #include "hooks.h"
 #include "log.h"
 #include "luxvelum_switch.h"
@@ -420,6 +421,8 @@ LRESULT CALLBACK OverlayWindowProc(HWND window, UINT msg, WPARAM wParam, LPARAM 
     const SubclassedWindow subclass = g_subclass;
     if (window == subclass.window && OverlayTakesMessageGuarded(window, msg, wParam, lParam))
         return 0;
+    if (msg == WM_DESTROY && window == subclass.window)
+        VF_LOG_INFO("%s", kGameWindowClosedLine);
     if (msg == WM_NCDESTROY && window == subclass.window)
         g_subclass = SubclassedWindow();
     return subclass.unicode ? CallWindowProcW(subclass.clientProc, window, msg, wParam, lParam)

@@ -10,6 +10,7 @@
 #include "engine.h"
 #include "fog_data.h"
 #include "fog_data_choice.h"
+#include "game_window_log.h"
 #include "fog_model.h"
 #include "forever_look.h"
 #include "fullscreen_triangle.h"
@@ -27,6 +28,7 @@
 #include "water_fft.h"
 #include "water_ripples.h"
 #include "water_spectrum.h"
+#include "water_glint.h"
 #include "status_log.h"
 #include "transparent_fog.h"
 
@@ -1684,13 +1686,19 @@ void CheckZoneHaloFade()
     const ZoneHalo halfway = fade.Advance(kTheBarrens, {1.5f, 1.0f}, 10.032 + kZoneHaloFadeSeconds);
     const ZoneHalo settled = fade.Advance(kTheBarrens, {1.5f, 1.0f}, 10.032 + 10.0 * kZoneHaloFadeSeconds);
     const ZoneHalo edited = fade.Advance(kTheBarrens, {0.8f, 1.0f}, 10.048 + 10.0 * kZoneHaloFadeSeconds);
+    ZoneHaloFade densityFade;
+    densityFade.Advance(kDurotar, {1.0f, 1.0f, 1.0f}, 30.0);
+    const ZoneHalo denser = densityFade.Advance(kTheBarrens, {1.0f, 1.0f, 2.0f}, 30.016);
+    const ZoneHalo denserSettled = densityFade.Advance(kTheBarrens, {1.0f, 1.0f, 2.0f}, 30.016 + 10.0 *
+                                                                                              kZoneHaloFadeSeconds);
     std::printf("     sun halo: start %.2f, slider %.2f, border %.2f, after %.1f s %.2f, settled %.2f, edited %.2f\n",
                 first.sun, slider.sun, crossed.sun, kZoneHaloFadeSeconds, halfway.sun, settled.sun, edited.sun);
     Check(Near(first.sun, 1.0f) && Near(slider.sun, 0.5f) && crossed.sun > 0.5f && crossed.sun < 0.6f && halfway.sun > crossed.sun &&
               halfway.sun < 1.5f && Near(settled.sun, 1.5f) && Near(edited.sun, 0.8f) &&
-              crossed.zoneId == kTheBarrens,
-          "a zone border fades the halo over about two seconds, while a slider in the same zone takes effect at "
-          "once");
+              crossed.zoneId == kTheBarrens && denser.density > 1.0f && denser.density < 1.1f &&
+              Near(denserSettled.density, 2.0f),
+          "a zone border fades the halo and the fog density over about two seconds, while a slider in the same zone "
+          "takes effect at once");
 }
 
 void CheckZoneHaloKeepsTheZoneThroughAnUnknownOne()
@@ -1732,6 +1740,30 @@ void CheckZoneHaloScalesTheScatter()
     Check(a.layers[0].diffuse[0] > 0.0f && Near(b.layers[0].diffuse[0], 0.5f * a.layers[0].diffuse[0]) &&
               c.layers[0].diffuse[0] > 0.0f && Near(d.layers[0].diffuse[0], 0.25f * c.layers[0].diffuse[0]),
           "the zone's sun halo scales the sun's scattering by day and its moon halo the moon's by night");
+}
+
+void CheckZoneDensityScalesTheFog()
+{
+    const Vec3 barrens = {-452.0f, -2652.0f, 92.0f};
+    const Vec3 toLight = {0.56f, 0.56f, 0.61f};
+    const FrameInputs plain = ContinentFrame(kKalimdor, barrens, kNoon, toLight, false);
+    FrameInputs denser = plain;
+    denser.zoneHalo = {kTheBarrens, 1.0f, 1.0f, 2.5f};
+    FrameInputs clear = plain;
+    clear.zoneHalo = {kTheBarrens, 1.0f, 1.0f, 0.0f};
+    const Config cfg;
+    const Config regional = ConfigForPlace(cfg, CameraPlace(plain));
+    const FogParams a = BuildFogParams(plain, ConfigForFrame(cfg, plain), nullptr);
+    const FogParams b = BuildFogParams(denser, ConfigForFrame(cfg, denser), nullptr);
+    const FogParams c = BuildFogParams(clear, ConfigForFrame(cfg, clear), nullptr);
+    std::printf("     density %.3f in the region, %.3f at zone density 2.5; haze layer %.6f -> %.6f, %.6f at 0\n",
+                regional.density, ConfigForFrame(cfg, denser).density, a.layers[0].density, b.layers[0].density,
+                c.layers[0].density);
+    Check(Near(ConfigForFrame(cfg, plain).density, regional.density) &&
+              Near(ConfigForFrame(cfg, denser).density, 2.5f * regional.density) && a.layers[0].density > 0.0f &&
+              Near(b.layers[0].density, 2.5f * a.layers[0].density) && c.layers[0].density == 0.0f,
+          "the zone's fog density multiplies the region's density, and through it every layer of the fog, while "
+          "1 leaves it as the region sets it and 0 clears it");
 }
 
 void CheckMap530StartingZonesHaveTheirOwnRegion()
@@ -2509,7 +2541,7 @@ void CheckEarlierSettingsAreTakenOver(const std::wstring& outDir, const std::wst
           "a Luxveil.ini from TEST Build-24-11 is taken over before an older CoAVolFog.ini");
 }
 
-constexpr const char* kShippedDensityLine = "\nDensity=0.8";
+constexpr const char* kShippedDensityLine = "\nDensity=1";
 constexpr const char* kTakenOverDensityLine = "\nDensity=2.5";
 constexpr float kTakenOverDensity = 2.5f;
 constexpr const char* kUtf8Bom = "\xEF\xBB\xBF";
@@ -2637,7 +2669,8 @@ void CheckZoneHaloOwnOverShipped(const std::wstring& outDir)
     const std::wstring ownFile = FullPath(outDir + L"\\zones-own.ini");
     const std::string shippedText = "[SunHalo]\n17=0.25\n10=0.65\n[MoonHalo]\n17=1.00\n10=1.00\n";
     DeleteFileW(ownFile.c_str());
-    const bool written = WriteText(shippedFile, shippedText) && WriteText(ownFile, "[SunHalo]\n10=0.80\n");
+    const bool written = WriteText(shippedFile, shippedText) &&
+                         WriteText(ownFile, "[SunHalo]\n10=0.80\n[Density]\n10=1.75\n");
     ZoneHaloBook book;
     book.Load(NarrowPath(shippedFile), NarrowPath(ownFile));
     book.Advance(kTheBarrens, "The Barrens", 1.0);
@@ -2653,9 +2686,12 @@ void CheckZoneHaloOwnOverShipped(const std::wstring& outDir)
               Near(durotar.factors.sun, 1.0f) && durotar.source == ZoneHaloSource::Unlisted,
           "a zone takes the player's own halo from WTF\\Luxvelum-zones.ini, else the shipped one from "
           "Data\\Luxvelum\\zones.ini, else 1");
+    Check(Near(duskwood.factors.density, 1.75f) && Near(barrens.factors.density, 1.0f) &&
+              Near(durotar.factors.density, 1.0f),
+          "a zone's fog density comes from the [Density] section the same way, 1 where no file lists it");
 
     book.Advance(kTheBarrens, "The Barrens", 2.0);
-    book.Edit({0.5f, 1.0f});
+    book.Edit({0.5f, 1.0f, 1.25f});
     const bool saved = book.SaveCurrent();
     book.Advance(kDuskwood, "Duskwood", 3.0);
     const bool forgotten = book.ForgetCurrent();
@@ -2666,7 +2702,8 @@ void CheckZoneHaloOwnOverShipped(const std::wstring& outDir)
                 "Duskwood back to %.2f\n",
                 own.Factors(kTheBarrens).sun, own.Listed(kDuskwood) ? "listed" : "not listed",
                 afterReset.factors.sun);
-    Check(saved && forgotten && Near(own.Factors(kTheBarrens).sun, 0.5f) && !own.Listed(kDuskwood) &&
+    Check(saved && forgotten && Near(own.Factors(kTheBarrens).sun, 0.5f) &&
+              Near(own.Factors(kTheBarrens).density, 1.25f) && !own.Listed(kDuskwood) &&
               Near(afterReset.factors.sun, 0.65f) && afterReset.source == ZoneHaloSource::Shipped &&
               ReadText(shippedFile) == shippedText,
           "the settings window writes and resets only the player's own halos, a reset falls back to the shipped "
@@ -3507,6 +3544,7 @@ int Run(const std::wstring& outDir, const std::string& dataPath, const std::wstr
     CheckZoneHaloFade();
     CheckZoneHaloKeepsTheZoneThroughAnUnknownOne();
     CheckZoneHaloScalesTheScatter();
+    CheckZoneDensityScalesTheFog();
     CheckHellfireKeepsOnlyAThinGroundFogUnderAClearSky(classic);
     CheckMoonScattersOnItsOwn(classic);
     CheckLocalLightsGlowByRegion();

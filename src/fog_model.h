@@ -102,6 +102,7 @@ MapRegion RegionOf(const MapPlace& place);
 const char* RegionName(MapRegion region);
 bool UsesFogData(const Config& cfg, const MapPlace& place);
 Config ConfigForPlace(const Config& cfg, const MapPlace& place);
+Config ConfigForFrame(const Config& cfg, const FrameInputs& in);
 PointLightUpload LocalLightUpload(const Config& cfg, const MapPlace& place);
 bool AnyLayerNoise(const FogParams& fog);
 float EnergyNormalisedPhaseScale(float g);

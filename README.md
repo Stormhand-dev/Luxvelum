@@ -374,6 +374,26 @@ yields slopes, slope variance and a persistent foam state per tile. The shading 
 unknown sun lookup table is replaced by a GGX lobe and its reflection probe by a screen-space march against the
 pre-water copies. Frames without queued water skip the pass entirely.
 
+**Reflection rays.** The reflection ray leaves the surface along a normal whose wave slope is scaled by
+`WaterReflectionWaviness` (shipped 0.35), while the Fresnel weight, the roughness and the sun's glint keep the full
+normal. With the full slope (1, the behaviour before 2026-11-25) neighbouring pixels of rough water sent their rays to
+unrelated places, so the scene's colour and the sky fallback alternated pixel by pixel: the owner's Booty Bay
+screenshots of 2026-11-25 showed the harbour lamps' orange broken into specks with cyan sky between them, stronger at
+higher `WaterReflections`. A ray that finds no surface within the thickness allowance no longer falls back to the
+synthetic sky gradient (the client's sky colours, cyan in Booty Bay) when it went behind the scene: it takes the
+scene's colour where it first did. The owner's screenshots of 2026-11-25 showed cyan bands under the harbour's piers,
+where the reflected rays pass behind the planks whose undersides the screen does not hold. Only geometry deeper than
+nine tenths of the water's own depth counts, as a hit or as an occluder: a reflected ray moves away from the camera,
+so it cannot meet the player's character standing in front of the water, whose staff and shoulders otherwise showed
+in the water behind him. A ray that stays in front of the scene takes the pixel at its vanishing point or where it
+leaves the screen. Every screen colour fades into the gradient over the outer 15% of the screen on each side, as the
+vertical fade before it did: two test builds of 2026-11-25 without that fade, one taking the edge pixel's colour and
+one taking it by how close the ray came to the edge's depth, made the reflections near the top switch abruptly
+between the scene and the sky while the camera tilted, and stretched the piers along the top edge down the water.
+The march stops at the left and right edges too: before, a ray past them read the clamped edge column, so the ship
+at the screen's edge ghosted in the water while the camera turned. The gradient also fades in as a ray turns
+parallel to the screen, and takes over for rays toward the camera.
+
 **Ripples.** Units in the water drive Forever's local displacement recurrence, `next = 0.97·edge·(0.5·(L + D + R +
 U) − C.g)`, output `(next, C.r)` (R the height, G the previous one, edge `saturate(16·min(u, 1 − u, v, 1 − v))`), on
 a G16R16F ping-pong map that follows the camera target by whole texels. Every step holds the footprint of each unit
@@ -1028,22 +1048,26 @@ be moved and resized, and keeps its place and size for the session. Its title ba
 commit of `BUILD.txt` (as in `Luxvelum reforged-dev ec0af3b`; `local` for a build outside the CI), and so does the
 first line of `Luxvelum.log`.
 
-The **This zone** section names the client's current zone and sets its sun and moon halo: factors on top of `SunScatter`
-and `MoonScatter` (0..4, 1 = the global value alone), kept as `[SunHalo]` and `[MoonHalo]` entries by `AreaTable` zone
-id with the zone's name under `[Zones]`. The shipped halos, the owner's tuning, are in `Data\Luxvelum\zones.ini`, which
-every release replaces and Luxvelum never writes; the player's own go to `WTF\Luxvelum-zones.ini` when a slider is let
-go, which no package contains, and win over the shipped ones for the zones they list. A zone neither lists keeps 1;
-**Reset this zone** removes the player's own entry and falls back to the shipped halo. The section and the log name the
-source (`shipped`, `your own`, `not listed`). The owner's own entries are folded into `data/zones.ini` by
-`tools/fold_zone_halos.py`, his values winning, so the players' copies of the shipped halos follow his corrections while
-their own edits stay. The halo follows the zone
-the map shows (Booty Bay belongs to Stranglethorn Vale), so it does not depend on which Classic light covers the place:
-Redridge has none of its own and takes Eastern Kingdoms' global light, which a per-light factor would have shared with
-the Badlands, Arathi and the sea. Crossing into another zone fades the factors over about two seconds (time constant 0.6
-s); a slider takes effect at once. While the client reports no zone (id 0, for a second in Duskwood in TEST Build-2-9),
-the last zone's halo stays. Each zone change writes a `zone 44 (Redridge Mountains): sun halo …` line to the log. The
-owner judged the halo per zone, not per region: Durotar right, the Barrens and Booty Bay far too large, Tirisfal nearly
-right (2026-11-18, `ClassicPhase=1`).
+The **This zone** section names the client's current zone and sets its sun and moon halo, factors on top of `SunScatter`
+and `MoonScatter`, and its fog density, a factor on top of `Density` and the region's density that scales every layer of
+the fog (each 0..4, 1 = the global value alone, a density of 0 clears the fog), kept as `[SunHalo]`, `[MoonHalo]` and
+`[Density]` entries by `AreaTable` zone id with the zone's name under `[Zones]`. The shipped halos, the owner's tuning,
+are in `Data\Luxvelum\zones.ini`, which every release replaces and Luxvelum never writes; the player's own go to
+`WTF\Luxvelum-zones.ini` when a slider is let go, which no package contains, and win over the shipped ones for the zones
+they list. A zone neither lists keeps 1; **Reset this zone** removes the player's own entry and falls back to the
+shipped halo. The section and the log name the source (`shipped`, `your own`, `not listed`). The owner's own entries are
+folded into `data/zones.ini` by `tools/fold_zone_halos.py`, his values winning, so the players' copies of the shipped
+halos follow his corrections while their own edits stay. The halo follows the zone the map shows (Booty Bay belongs to
+Stranglethorn Vale), so it does not depend on which Classic light covers the place: Redridge has none of its own and
+takes Eastern Kingdoms' global light, which a per-light factor would have shared with the Badlands, Arathi and the sea.
+Crossing into another zone fades the factors over about two seconds (time constant 0.6 s); a slider takes effect at
+once. While the client reports no zone (id 0, for a second in Duskwood in TEST Build-2-9), the last zone's halo stays.
+Each zone change writes a `zone 44 (Redridge Mountains): sun halo …, fog density …` line to the log. A file without a
+`[Density]` section, such as one saved before the density existed, leaves every zone's density at 1. The density takes
+effect where Luxvelum builds the frame's settings (`ConfigForFrame`), so the volumetric fog, the see-through models'
+fitted fog and the fog over the water follow it alike; the local lights' gain, which evens out the regions' densities,
+does not compensate it, so a denser zone also makes its lamps glow more. The owner judged the halo per zone, not per
+region: Durotar right, the Barrens and Booty Bay far too large, Tirisfal nearly right (2026-11-18, `ClassicPhase=1`).
 
 While the window is open, clicks and the wheel go to it only while the cursor is over it or a drag started on
 it, and keys only while one of its text fields is active (Ctrl+click on a slider). The hotkey never reaches the
@@ -1088,6 +1112,10 @@ the client's, and a `ToggleKey` set later works only from the next start. `Save`
 `ToggleKey` from the INI, so a hand edit of them made since the last reload is kept. Each hotkey swallows only its own
 key-up, so a key released while the other hotkey is held still reaches the client. The log names the keys that arrive
 with Ctrl, Shift or Alt, and `OverlayKey` and `ToggleKey` themselves, as for `OverlayKey` on laptops.
+While the window procedure is chained, the game window's `WM_DESTROY` writes `game window closed` to the log, the
+last line of a session the client ended normally; a session whose log stops without it is still running or crashed,
+which is how an install into the owner's client tells whether the game is closed. With `Overlay=0` and no `ToggleKey`
+the procedure stays the client's and no such line is written.
 
 ## Build
 
@@ -1343,7 +1371,9 @@ choice, also `ClassicPhase=1` and `Temporal=0.97`, which ends the sky dithering 
 | `WaterWaves` | 1 | Wave height 0..2; 0 = flat water |
 | `WaterWind` | 2 | Wind driving the waves, 0.5..10 |
 | `WaterFoam`, `WaterReflections` | 1, 1 | Foam and reflection strength 0..2 |
+| `WaterReflectionWaviness` | 0.35 | How far the wave slope bends the reflection rays 0..1; 0 = a mirror, 1 = the full wave normal. It leaves the waves alone, unlike `WaterWaves`; first labelled "Reflection distortion", renamed after the owner took it for a second wave height (2026-11-25), and not "ripple" because `WaterRipples` are the units' wakes |
 | `WaterSpecular` | 1 | Sun or moon glint 0..4 |
+| `WaterMoonGlint` | 6 | The moon's glint 0..10, on top of `WaterSpecular`: the night's direct light the water is lit by is dim (and scaled by 0.35), while the moon's disc is bright, so at 1 the moon's path on the lake was barely visible (owner, Mulgore, 2026-11-24) |
 | `WaterClarity` | 1 | How far you see into the water 0.25..4 |
 | `WaterZoneColors` | 0.5 | Tint by the zone's own water colours 0..1 |
 | `WaterRipples` | 0.5 | Wakes of units in the water 0..2; 0 = no unit reads and no ripple simulation |

@@ -308,6 +308,10 @@ void DrawZoneHalo()
                       "The moon's halo in this zone, on top of Moon scatter; saved as your own to "
                       "WTF\\Luxvelum-zones.ini when you let go. 1 = as Moon scatter alone");
     released |= ImGui::IsItemDeactivatedAfterEdit();
+    changed |= Slider("Fog density here", factors.density, 0.0f, kZoneHaloMax, "%.2f",
+                      "The fog's density in this zone, on top of Density and the region's density; saved as your "
+                      "own to WTF\\Luxvelum-zones.ini when you let go. 1 = as those alone, 0 = no fog here");
+    released |= ImGui::IsItemDeactivatedAfterEdit();
     if (changed)
         book.Edit(factors);
     if (released)
@@ -315,8 +319,8 @@ void DrawZoneHalo()
     ImGui::BeginDisabled(view.source != ZoneHaloSource::Own);
     if (ImGui::Button("Reset this zone"))
         book.ForgetCurrent();
-    ImGui::SetItemTooltip("Remove your own halo for this zone from WTF\\Luxvelum-zones.ini, back to the shipped "
-                          "halo of Data\\Luxvelum\\zones.ini, or 1 where it lists none");
+    ImGui::SetItemTooltip("Remove your own values for this zone from WTF\\Luxvelum-zones.ini, back to the shipped "
+                          "values of Data\\Luxvelum\\zones.ini, or 1 where it lists none");
     ImGui::EndDisabled();
 }
 
@@ -454,8 +458,14 @@ bool DrawWater(Config& c)
     changed |= Slider("Foam", c.waterFoam, 0.0f, 2.0f, "%.2f", "Foam on wave crests and along shores, 0 = none");
     changed |= Slider("Reflections", c.waterReflections, 0.0f, 2.0f, "%.2f",
                       "Reflections of the sky and the scene, 0 = none");
+    changed |= Slider("Reflection waviness", c.waterReflectionWaviness, 0.0f, 1.0f, "%.2f",
+                      "How much the waves bend the reflections, without changing the waves themselves: lower is "
+                      "calmer and clearer, 0 = a mirror even on rough water, 1 = every wave bends them");
     changed |= Slider("Sun highlight", c.waterSpecular, 0.0f, 4.0f, "%.2f",
                       "Highlight of the sun or moon on the water, 0 = none");
+    changed |= Slider("Moon highlight", c.waterMoonGlint, 0.0f, 10.0f, "%.2f",
+                      "The moon's highlight on the water at night, on top of Sun highlight: the night's light is "
+                      "dim, while the moon's disc is bright. 1 = as dim as the night's light");
     changed |= Slider("Clarity", c.waterClarity, 0.25f, 4.0f, "%.2f",
                       "How far you see into the water; larger is clearer", ImGuiSliderFlags_Logarithmic);
     changed |= Slider("Zone colours", c.waterZoneColors, 0.0f, 1.0f, "%.2f",
