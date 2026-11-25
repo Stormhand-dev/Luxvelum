@@ -2,6 +2,7 @@ static const float kSkyLowerBandElevation = 0.06;
 static const float kSkyUpperBandElevation = 0.15;
 static const float kSkyMiddleElevation = 0.35;
 static const float kSkyTopElevation = 0.8;
+static const float kSkyHitDepthFraction = 0.99;
 
 float3 ReflectedDirection(float3 V, float3 N)
 {
@@ -32,6 +33,7 @@ static const float kReflectionThicknessYards = 1.5;
 static const float kReflectionRelativeThickness = 0.05;
 static const float kNoReflectionHit = 2;
 static const float kAwayFromCameraFadeEnd = 0.1;
+static const float kExitConfidenceStart = 0.5;
 
 struct ReflectionRay
 {
@@ -61,13 +63,26 @@ float2 RayUv(ReflectionRay ray, float s)
     return CopyUv(lerp(ray.startPixel, ray.vanishingPixel, s));
 }
 
+float AxisExtent(float start, float rise, float low, float high)
+{
+    return rise < 0 ? (low - start) / rise : (high - start) / max(rise, kMinScreenStep);
+}
+
 float OnScreenExtent(ReflectionRay ray)
 {
-    float rise = ray.vanishingPixel.y - ray.startPixel.y;
-    float top = ViewportOrigin().y;
-    float bottom = top + ViewportSize().y;
-    float limit = rise < 0 ? (top - ray.startPixel.y) / rise : (bottom - ray.startPixel.y) / max(rise, kMinScreenStep);
-    return saturate(limit);
+    float2 rise = ray.vanishingPixel - ray.startPixel;
+    float2 low = ViewportOrigin();
+    float2 high = low + ViewportSize();
+    float horizontal = AxisExtent(ray.startPixel.x, rise.x, low.x, high.x);
+    float vertical = AxisExtent(ray.startPixel.y, rise.y, low.y, high.y);
+    return saturate(min(horizontal, vertical));
+}
+
+float ScreenExitWeight(ReflectionRay ray, float extent)
+{
+    float sceneZ = CopiedViewDepth(sSceneDepth, RayUv(ray, extent));
+    bool reachesSky = extent >= 1 || sceneZ >= kSkyHitDepthFraction * MaxFogDistance();
+    return reachesSky ? 1 : smoothstep(kExitConfidenceStart, 1, RayViewZ(ray, extent) / sceneZ);
 }
 
 bool RayBehindScene(ReflectionRay ray, float s)
@@ -112,8 +127,10 @@ float4 TraceScreenReflection(WaterPixel w, float2 pixel, float3 R, out float2 hi
         }
     }
     float weight = smoothstep(kMinReflectionViewZ, kAwayFromCameraFadeEnd, viewDirection.z);
+    [branch] if (behind == kNoReflectionHit && hidden != kNoReflectionHit)
+        return ScreenReflectionAt(ray, hidden, weight, hitUv);
     [branch] if (behind == kNoReflectionHit)
-        return ScreenReflectionAt(ray, hidden == kNoReflectionHit ? extent : hidden, weight, hitUv);
+        return ScreenReflectionAt(ray, extent, weight * ScreenExitWeight(ray, extent), hitUv);
     [loop] for (int refinement = 0; refinement < kReflectionRefinements; ++refinement)
     {
         float middle = 0.5 * (front + behind);
@@ -133,7 +150,6 @@ float4 TraceScreenReflection(WaterPixel w, float2 pixel, float3 R, out float2 hi
 
 static const int kReflectionFogLayers = 4;
 static const int kReflectionFogLayerRegisters = 5;
-static const float kSkyHitDepthFraction = 0.99;
 static const float kMinPhaseDistance = 1e-6;
 static const float kMinProfileHeightSpan = 1e-3;
 static const float kMinExponentSpan = 1e-2;

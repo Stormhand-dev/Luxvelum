@@ -380,11 +380,16 @@ normal. With the full slope (1, the behaviour before 2026-11-25) neighbouring pi
 unrelated places, so the scene's colour and the sky fallback alternated pixel by pixel: the owner's Booty Bay
 screenshots of 2026-11-25 showed the harbour lamps' orange broken into specks with cyan sky between them, stronger at
 higher `WaterReflections`. A ray that finds no surface within the thickness allowance no longer falls back to the
-synthetic sky gradient (the client's sky colours, cyan in Booty Bay): it takes the scene's colour where it first went
-behind the scene, or, if it never did, where it leaves the screen or reaches its vanishing point, which is the real
-sky or the cliff beyond the screen's edge. The owner's screenshots of 2026-11-25 showed cyan bands under the harbour's
-piers, where the reflected rays pass behind the planks whose undersides the screen does not hold. The gradient is
-left only to rays that turn toward the camera, faded in as the ray turns parallel to the screen.
+synthetic sky gradient (the client's sky colours, cyan in Booty Bay) when it went behind the scene: it takes the
+scene's colour where it first did. The owner's screenshots of 2026-11-25 showed cyan bands under the harbour's piers,
+where the reflected rays pass behind the planks whose undersides the screen does not hold. A ray that stays in front
+of the scene until its vanishing point, or until it leaves the screen at the sky, takes that pixel's colour, the real
+sky. A ray that leaves the screen in front of the scene's geometry is uncertain: it keeps the edge pixel's colour by
+how close it came to that geometry, from half its depth to all of it, and the gradient otherwise. Taking the edge
+colour regardless (test build of 2026-11-25) stretched the piers along the top edge down the water in long streaks
+that swam as the camera tilted. The march stops at the left and right edges too: before, a ray past them read the
+clamped edge column, so the ship at the screen's edge ghosted in the water while the camera turned. The gradient also
+fades in as a ray turns parallel to the screen, and takes over for rays toward the camera.
 
 **Ripples.** Units in the water drive Forever's local displacement recurrence, `next = 0.97·edge·(0.5·(L + D + R +
 U) − C.g)`, output `(next, C.r)` (R the height, G the previous one, edge `saturate(16·min(u, 1 − u, v, 1 − v))`), on
