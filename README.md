@@ -379,9 +379,12 @@ pre-water copies. Frames without queued water skip the pass entirely.
 normal. With the full slope (1, the behaviour before 2026-11-25) neighbouring pixels of rough water sent their rays to
 unrelated places, so the scene's colour and the sky fallback alternated pixel by pixel: the owner's Booty Bay
 screenshots of 2026-11-25 showed the harbour lamps' orange broken into specks with cyan sky between them, stronger at
-higher `WaterReflections`. A hit also fades instead of switching: it weakens once the ray's step before the hit
-already lay behind the scene by more than half the thickness allowance (a ray grazing past a post), and as the ray
-turns parallel to the screen.
+higher `WaterReflections`. A ray that finds no surface within the thickness allowance no longer falls back to the
+synthetic sky gradient (the client's sky colours, cyan in Booty Bay): it takes the scene's colour where it first went
+behind the scene, or, if it never did, where it leaves the screen or reaches its vanishing point, which is the real
+sky or the cliff beyond the screen's edge. The owner's screenshots of 2026-11-25 showed cyan bands under the harbour's
+piers, where the reflected rays pass behind the planks whose undersides the screen does not hold. The gradient is
+left only to rays that turn toward the camera, faded in as the ray turns parallel to the screen.
 
 **Ripples.** Units in the water drive Forever's local displacement recurrence, `next = 0.97·edge·(0.5·(L + D + R +
 U) − C.g)`, output `(next, C.r)` (R the height, G the previous one, edge `saturate(16·min(u, 1 − u, v, 1 − v))`), on

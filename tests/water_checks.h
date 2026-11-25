@@ -62,6 +62,12 @@ constexpr float kMaxShoreReflectionFraction = 0.02f;
 constexpr float kRoughTileAmplitude = 30000.0f;
 constexpr float kRippledReflectionDistortion = 1.0f;
 constexpr float kMaxCalmReflectionGrainRatio = 0.75f;
+constexpr uint32_t kSyntheticSkyColour = 0xFF00FF00;
+constexpr int kSyntheticSkyTolerance = 8;
+constexpr float kMinSkyOnlySyntheticFraction = 0.9f;
+constexpr float kMaxScreenSyntheticFraction = 0.05f;
+constexpr int kSkyOnlyWaterQuality = 1;
+constexpr int kScreenReflectionWaterQuality = 2;
 constexpr float kRoughTileWindMultiplier = 3.0f;
 constexpr float kFoamEverywhereRange = 10000.0f;
 constexpr float kDimFoamTint = 0.25f;
@@ -2227,6 +2233,55 @@ void CheckCalmReflectionsAreLessGrainy(Harness& h, const Config& base, const std
     AssignWaterData(MakeSyntheticWaterData());
 }
 
+float SyntheticSkyFraction(const Image& mask, const Image& reflected)
+{
+    size_t water = 0;
+    size_t synthetic = 0;
+    for (UINT y = 0; y < mask.h; ++y)
+        for (UINT x = 0; x < mask.w; ++x)
+        {
+            if (!IsMaskPixel(mask, x, y))
+                continue;
+            ++water;
+            synthetic += NearColour(reflected.At(x, y), kSyntheticSkyColour, kSyntheticSkyTolerance) ? 1 : 0;
+        }
+    return water ? static_cast<float>(synthetic) / static_cast<float>(water) : 1.0f;
+}
+
+void CheckScreenReflectionsReplaceTheSyntheticSky(Harness& h, const Config& base)
+{
+    WaterView view = DefaultWaterView();
+    for (uint32_t& sky : view.water.skyColors)
+        sky = kSyntheticSkyColour;
+    BasinClient client(h, view);
+    Config reflection = WaterConfig(base);
+    reflection.waterDebugView = kReflectionDebugView;
+    reflection.density = 0.0f;
+    vf_test_set_config(&reflection);
+    WaterFrame mask;
+    mask.calls = WaterCalls::None;
+    mask.opaqueMask = true;
+    const WaterFrameResult water = client.Render(mask);
+    WaterFrame pass;
+    reflection.waterQuality = kSkyOnlyWaterQuality;
+    vf_test_set_config(&reflection);
+    const WaterFrameResult skyOnly = client.Render(pass);
+    reflection.waterQuality = kScreenReflectionWaterQuality;
+    vf_test_set_config(&reflection);
+    const WaterFrameResult screen = client.Render(pass);
+    const float skyOnlyFraction = SyntheticSkyFraction(water.image, skyOnly.image);
+    const float screenFraction = SyntheticSkyFraction(water.image, screen.image);
+    std::printf("     water pixels reflecting the synthetic sky: %.1f%% with sky reflections only, %.1f%% with screen "
+                "reflections\n",
+                skyOnlyFraction * 100.0f, screenFraction * 100.0f);
+    Check(skyOnly.began && screen.began && skyOnlyFraction >= kMinSkyOnlySyntheticFraction &&
+              screenFraction <= kMaxScreenSyntheticFraction,
+          "screen reflections that pass behind the scene or leave the screen reflect the scene's own colours, not "
+          "the synthetic sky");
+    const Config on = WaterConfig(base);
+    vf_test_set_config(&on);
+}
+
 SyntheticWaterData FoamCoveredLake(float tint)
 {
     SyntheticWaterData data = MakeSyntheticWaterData();
@@ -2557,6 +2612,7 @@ void CheckWaterPass(Harness& h, const std::wstring& outDir, const std::string& w
     CheckHiddenLightDropsTheGlint(h, base);
     CheckGrazingReflectionsMissTheShore(h, base, outDir);
     CheckCalmReflectionsAreLessGrainy(h, base, outDir);
+    CheckScreenReflectionsReplaceTheSyntheticSky(h, base);
     CheckFoamTintsAreLinear(client, base);
     CheckSunsetFoamStaysBelowLitGround(h, base);
     CheckEndReportsWhatItShaded(h, client, base);

@@ -30,10 +30,7 @@ static const float kMinInverseViewZ = 1e-8;
 static const float kMinScreenStep = 1e-6;
 static const float kReflectionThicknessYards = 1.5;
 static const float kReflectionRelativeThickness = 0.05;
-static const float kVerticalFadeStart = 0.9;
-static const float kVerticalFadeRate = 10;
 static const float kNoReflectionHit = 2;
-static const float kSolidHitMargin = 0.5;
 static const float kAwayFromCameraFadeEnd = 0.1;
 
 struct ReflectionRay
@@ -78,6 +75,12 @@ bool RayBehindScene(ReflectionRay ray, float s)
     return RayViewZ(ray, s) > CopiedViewDepth(sSceneDepth, RayUv(ray, s));
 }
 
+float4 ScreenReflectionAt(ReflectionRay ray, float s, float weight, out float2 hitUv)
+{
+    hitUv = RayUv(ray, s);
+    return float4(GammaToLinear(tex2Dlod(sSceneColour, float4(hitUv, 0, 0)).rgb), weight);
+}
+
 float4 TraceScreenReflection(WaterPixel w, float2 pixel, float3 R, out float2 hitUv)
 {
     hitUv = 0;
@@ -92,7 +95,7 @@ float4 TraceScreenReflection(WaterPixel w, float2 pixel, float3 R, out float2 hi
     float previous = 0;
     float front = 0;
     float behind = kNoReflectionHit;
-    float margin = 0;
+    float hidden = kNoReflectionHit;
     [loop] for (int step = 1; step <= kReflectionSteps; ++step)
     {
         [branch] if (behind == kNoReflectionHit)
@@ -100,15 +103,17 @@ float4 TraceScreenReflection(WaterPixel w, float2 pixel, float3 R, out float2 hi
             float s = extent * step / kReflectionSteps;
             float sceneZ = CopiedViewDepth(sSceneDepth, RayUv(ray, s));
             float thickness = max(kReflectionThicknessYards, sceneZ * kReflectionRelativeThickness);
-            bool crossed = RayViewZ(ray, s) > sceneZ && RayViewZ(ray, previous) < sceneZ + thickness;
-            margin = crossed ? (RayViewZ(ray, previous) - sceneZ) / thickness : margin;
+            bool beyond = RayViewZ(ray, s) > sceneZ;
+            bool crossed = beyond && RayViewZ(ray, previous) < sceneZ + thickness;
+            hidden = beyond && hidden == kNoReflectionHit ? s : hidden;
             front = crossed ? previous : front;
             behind = crossed ? s : behind;
             previous = s;
         }
     }
+    float weight = smoothstep(kMinReflectionViewZ, kAwayFromCameraFadeEnd, viewDirection.z);
     [branch] if (behind == kNoReflectionHit)
-        return 0;
+        return ScreenReflectionAt(ray, hidden == kNoReflectionHit ? extent : hidden, weight, hitUv);
     [loop] for (int refinement = 0; refinement < kReflectionRefinements; ++refinement)
     {
         float middle = 0.5 * (front + behind);
@@ -116,13 +121,7 @@ float4 TraceScreenReflection(WaterPixel w, float2 pixel, float3 R, out float2 hi
         front = middleBehind ? front : middle;
         behind = middleBehind ? middle : behind;
     }
-    float2 uv = RayUv(ray, behind);
-    hitUv = uv;
-    float edgeFade = saturate(1 - saturate((max(uv.y, 1 - uv.y) - kVerticalFadeStart) * kVerticalFadeRate));
-    float marginFade = 1 - smoothstep(kSolidHitMargin, 1, margin);
-    float directionFade = smoothstep(kMinReflectionViewZ, kAwayFromCameraFadeEnd, viewDirection.z);
-    float fade = edgeFade * marginFade * directionFade;
-    return float4(GammaToLinear(tex2Dlod(sSceneColour, float4(uv, 0, 0)).rgb), fade);
+    return ScreenReflectionAt(ray, behind, weight, hitUv);
 }
 #else
 float4 TraceScreenReflection(WaterPixel w, float2 pixel, float3 R, out float2 hitUv)
