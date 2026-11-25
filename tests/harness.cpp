@@ -2540,8 +2540,8 @@ void CheckEarlierSettingsAreTakenOver(const std::wstring& outDir, const std::wst
           "a Luxveil.ini from TEST Build-24-11 is taken over before an older CoAVolFog.ini");
 }
 
-constexpr const char* kShippedDensityLine = "\nDensity=0.8";
-constexpr const char* kTakenOverDensityLine = "\nDensity=2.5";
+constexpr const char* kShippedDensityLine = "\nDensity=1\n";
+constexpr const char* kTakenOverDensityLine = "\nDensity=2.5\n";
 constexpr float kTakenOverDensity = 2.5f;
 constexpr const char* kUtf8Bom = "\xEF\xBB\xBF";
 constexpr const char* kUtf16LeBom = "\xFF\xFE";
