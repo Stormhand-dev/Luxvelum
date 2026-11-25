@@ -458,9 +458,9 @@ bool DrawWater(Config& c)
     changed |= Slider("Foam", c.waterFoam, 0.0f, 2.0f, "%.2f", "Foam on wave crests and along shores, 0 = none");
     changed |= Slider("Reflections", c.waterReflections, 0.0f, 2.0f, "%.2f",
                       "Reflections of the sky and the scene, 0 = none");
-    changed |= Slider("Reflection distortion", c.waterReflectionDistortion, 0.0f, 1.0f, "%.2f",
-                      "How far the small waves bend the reflections: lower is calmer and less grainy, 0 = a mirror, "
-                      "1 = every ripple bends them");
+    changed |= Slider("Reflection waviness", c.waterReflectionWaviness, 0.0f, 1.0f, "%.2f",
+                      "How much the waves bend the reflections, without changing the waves themselves: lower is "
+                      "calmer and clearer, 0 = a mirror even on rough water, 1 = every wave bends them");
     changed |= Slider("Sun highlight", c.waterSpecular, 0.0f, 4.0f, "%.2f",
                       "Highlight of the sun or moon on the water, 0 = none");
     changed |= Slider("Moon highlight", c.waterMoonGlint, 0.0f, 10.0f, "%.2f",

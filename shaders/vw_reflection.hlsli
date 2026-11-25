@@ -12,7 +12,7 @@ float3 ReflectedDirection(float3 V, float3 N)
 
 float3 ReflectionRayNormal(float2 slope)
 {
-    return normalize(float3(-slope * ReflectionDistortion(), 1));
+    return normalize(float3(-slope * ReflectionWaviness(), 1));
 }
 
 float3 SkyColour(float elevation)

@@ -168,7 +168,7 @@ float InverseTileCount()
     return cWaveControl.x;
 }
 
-float ReflectionDistortion()
+float ReflectionWaviness()
 {
     return cWaveControl.y;
 }

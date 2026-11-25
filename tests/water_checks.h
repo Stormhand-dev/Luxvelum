@@ -60,7 +60,7 @@ constexpr UINT kMirroredShoreRows = 8;
 constexpr int kShoreColourTolerance = 3;
 constexpr float kMaxShoreReflectionFraction = 0.02f;
 constexpr float kRoughTileAmplitude = 30000.0f;
-constexpr float kRippledReflectionDistortion = 1.0f;
+constexpr float kFullReflectionWaviness = 1.0f;
 constexpr float kMaxCalmReflectionGrainRatio = 0.75f;
 constexpr uint32_t kSyntheticSkyColour = 0xFF00FF00;
 constexpr int kSyntheticSkyTolerance = 8;
@@ -2215,12 +2215,12 @@ void CheckCalmReflectionsAreLessGrainy(Harness& h, const Config& base, const std
     mask.opaqueMask = true;
     const WaterFrameResult water = client.Render(mask);
     WaterFrame pass;
-    const float distortions[] = {kRippledReflectionDistortion, Config().waterReflectionDistortion, 0.0f};
+    const float wavinesses[] = {kFullReflectionWaviness, Config().waterReflectionWaviness, 0.0f};
     double grain[3] = {};
     bool began = true;
     for (int i = 0; i < 3; ++i)
     {
-        reflection.waterReflectionDistortion = distortions[i];
+        reflection.waterReflectionWaviness = wavinesses[i];
         vf_test_set_config(&reflection);
         const WaterFrameResult reflected = client.Render(pass);
         began = began && reflected.began;
@@ -2228,12 +2228,12 @@ void CheckCalmReflectionsAreLessGrainy(Harness& h, const Config& base, const std
         if (i == 1)
             SaveImage(outDir, L"water-calm-reflection", reflected.image);
     }
-    std::printf("     reflection grain between neighbouring water pixels: %.1f at distortion %.2f, %.1f at %.2f, "
+    std::printf("     reflection grain between neighbouring water pixels: %.1f at waviness %.2f, %.1f at %.2f, "
                 "%.1f at %.2f\n",
-                grain[0], distortions[0], grain[1], distortions[1], grain[2], distortions[2]);
+                grain[0], wavinesses[0], grain[1], wavinesses[1], grain[2], wavinesses[2]);
     Check(assigned && began && grain[0] > 0.0 && grain[1] <= grain[0] * kMaxCalmReflectionGrainRatio &&
               grain[2] <= grain[1],
-          "with WaterReflectionDistortion below 1, rough waves bend the reflection rays less and the reflections "
+          "with WaterReflectionWaviness below 1, rough waves bend the reflection rays less and the reflections "
           "change less from one water pixel to the next");
     const Config on = WaterConfig(base);
     vf_test_set_config(&on);
@@ -2317,7 +2317,7 @@ void CheckObjectsNearerThanTheWaterAreNotReflected(Harness& h, const Config& bas
     reflection.waterDebugView = kReflectionDebugView;
     reflection.density = 0.0f;
     reflection.waterQuality = kScreenReflectionWaterQuality;
-    reflection.waterReflectionDistortion = kRippledReflectionDistortion;
+    reflection.waterReflectionWaviness = kFullReflectionWaviness;
     vf_test_set_config(&reflection);
     WaterFrame mask;
     mask.calls = WaterCalls::None;
