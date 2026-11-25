@@ -2,7 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 
-SECTIONS = ("Zones", "SunHalo", "MoonHalo")
+SECTIONS = ("Zones", "SunHalo", "MoonHalo", "Density")
 
 
 def read_zone_file(path):

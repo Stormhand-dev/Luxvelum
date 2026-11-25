@@ -15,6 +15,7 @@ namespace
 {
 constexpr const char* kSunSection = "SunHalo";
 constexpr const char* kMoonSection = "MoonHalo";
+constexpr const char* kDensitySection = "Density";
 constexpr const char* kNameSection = "Zones";
 constexpr DWORD kSectionBufferSize = 64 * 1024;
 constexpr float kSettledDifference = 0.001f;
@@ -70,6 +71,8 @@ void ZoneHaloTable::Load(const std::string& path)
     m_factors.clear();
     ForEachEntry(path, kSunSection, [&](int zoneId, float value) { m_factors[zoneId].sun = ClampedFactor(value); });
     ForEachEntry(path, kMoonSection, [&](int zoneId, float value) { m_factors[zoneId].moon = ClampedFactor(value); });
+    ForEachEntry(path, kDensitySection,
+                 [&](int zoneId, float value) { m_factors[zoneId].density = ClampedFactor(value); });
 }
 
 ZoneHaloFactors ZoneHaloTable::Factors(int zoneId) const
@@ -81,7 +84,7 @@ ZoneHaloFactors ZoneHaloTable::Factors(int zoneId) const
 void ZoneHaloTable::Edit(int zoneId, const ZoneHaloFactors& factors)
 {
     if (zoneId > 0)
-        m_factors[zoneId] = {ClampedFactor(factors.sun), ClampedFactor(factors.moon)};
+        m_factors[zoneId] = {ClampedFactor(factors.sun), ClampedFactor(factors.moon), ClampedFactor(factors.density)};
 }
 
 bool ZoneHaloTable::Save(int zoneId, const char* zoneName) const
@@ -94,7 +97,8 @@ bool ZoneHaloTable::Save(int zoneId, const char* zoneName) const
     const bool named = !zoneName || !*zoneName ||
                        WritePrivateProfileStringA(kNameSection, key, zoneName, m_path.c_str()) != 0;
     return WriteFactor(m_path, kSunSection, zoneId, factors.sun) &&
-           WriteFactor(m_path, kMoonSection, zoneId, factors.moon) && named;
+           WriteFactor(m_path, kMoonSection, zoneId, factors.moon) &&
+           WriteFactor(m_path, kDensitySection, zoneId, factors.density) && named;
 }
 
 bool ZoneHaloTable::Forget(int zoneId)
@@ -104,7 +108,8 @@ bool ZoneHaloTable::Forget(int zoneId)
         return false;
     const bool sun = EraseKey(m_path, kSunSection, zoneId);
     const bool moon = EraseKey(m_path, kMoonSection, zoneId);
-    return EraseKey(m_path, kNameSection, zoneId) && sun && moon;
+    const bool density = EraseKey(m_path, kDensitySection, zoneId);
+    return EraseKey(m_path, kNameSection, zoneId) && sun && moon && density;
 }
 
 ZoneHalo ZoneHaloFade::Advance(int zoneId, const ZoneHaloFactors& target, double seconds)
@@ -113,7 +118,7 @@ ZoneHalo ZoneHaloFade::Advance(int zoneId, const ZoneHaloFactors& target, double
     {
         m_started = true;
         m_advancedTo = seconds;
-        m_current = {zoneId, target.sun, target.moon};
+        m_current = {zoneId, target.sun, target.moon, target.density};
         return m_current;
     }
     const double elapsed = std::max(seconds - m_advancedTo, 0.0);
@@ -125,12 +130,15 @@ ZoneHalo ZoneHaloFade::Advance(int zoneId, const ZoneHaloFactors& target, double
     {
         m_current.sun = target.sun;
         m_current.moon = target.moon;
+        m_current.density = target.density;
         return m_current;
     }
     m_current.sun = Approach(m_current.sun, target.sun, elapsed);
     m_current.moon = Approach(m_current.moon, target.moon, elapsed);
+    m_current.density = Approach(m_current.density, target.density, elapsed);
     m_fading = std::fabs(m_current.sun - target.sun) > kSettledDifference ||
-               std::fabs(m_current.moon - target.moon) > kSettledDifference;
+               std::fabs(m_current.moon - target.moon) > kSettledDifference ||
+               std::fabs(m_current.density - target.density) > kSettledDifference;
     return m_current;
 }
 
@@ -183,8 +191,8 @@ ZoneHalo ZoneHaloBook::Advance(int zoneId, const char* zoneName, double seconds)
         m_view.zoneId = zoneId;
         std::snprintf(m_view.zoneName, sizeof(m_view.zoneName), "%s", zoneName ? zoneName : "");
         const ZoneHaloFactors target = Factors(zoneId);
-        VF_LOG_INFO("zone %d (%s): sun halo %.2f, moon halo %.2f%s", zoneId, m_view.zoneName, target.sun,
-                    target.moon, SourceNote(SourceOf(zoneId)));
+        VF_LOG_INFO("zone %d (%s): sun halo %.2f, moon halo %.2f, fog density %.2f%s", zoneId, m_view.zoneName,
+                    target.sun, target.moon, target.density, SourceNote(SourceOf(zoneId)));
     }
     Show(zoneId);
     return m_fade.Advance(zoneId, m_view.factors, seconds);
@@ -205,8 +213,8 @@ bool ZoneHaloBook::SaveCurrent()
 {
     const bool saved = m_own.Save(m_view.zoneId, m_view.zoneName);
     const ZoneHaloFactors factors = m_own.Factors(m_view.zoneId);
-    VF_LOG_INFO("zone %d (%s): your halo saved as sun %.2f, moon %.2f%s", m_view.zoneId, m_view.zoneName,
-                factors.sun, factors.moon, saved ? "" : " (write failed)");
+    VF_LOG_INFO("zone %d (%s): your values saved as sun halo %.2f, moon halo %.2f, fog density %.2f%s", m_view.zoneId,
+                m_view.zoneName, factors.sun, factors.moon, factors.density, saved ? "" : " (write failed)");
     return saved;
 }
 
@@ -214,9 +222,9 @@ bool ZoneHaloBook::ForgetCurrent()
 {
     const bool forgotten = m_own.Forget(m_view.zoneId);
     Show(m_view.zoneId);
-    VF_LOG_INFO("zone %d (%s): your halo removed, back to sun %.2f, moon %.2f%s%s", m_view.zoneId,
-                m_view.zoneName, m_view.factors.sun, m_view.factors.moon, SourceNote(m_view.source),
-                forgotten ? "" : " (write failed)");
+    VF_LOG_INFO("zone %d (%s): your values removed, back to sun halo %.2f, moon halo %.2f, fog density %.2f%s%s",
+                m_view.zoneId, m_view.zoneName, m_view.factors.sun, m_view.factors.moon, m_view.factors.density,
+                SourceNote(m_view.source), forgotten ? "" : " (write failed)");
     return forgotten;
 }
 

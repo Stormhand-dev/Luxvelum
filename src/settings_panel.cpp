@@ -308,6 +308,10 @@ void DrawZoneHalo()
                       "The moon's halo in this zone, on top of Moon scatter; saved as your own to "
                       "WTF\\Luxvelum-zones.ini when you let go. 1 = as Moon scatter alone");
     released |= ImGui::IsItemDeactivatedAfterEdit();
+    changed |= Slider("Fog density here", factors.density, 0.0f, kZoneHaloMax, "%.2f",
+                      "The fog's density in this zone, on top of Density and the region's density; saved as your "
+                      "own to WTF\\Luxvelum-zones.ini when you let go. 1 = as those alone, 0 = no fog here");
+    released |= ImGui::IsItemDeactivatedAfterEdit();
     if (changed)
         book.Edit(factors);
     if (released)
@@ -315,8 +319,8 @@ void DrawZoneHalo()
     ImGui::BeginDisabled(view.source != ZoneHaloSource::Own);
     if (ImGui::Button("Reset this zone"))
         book.ForgetCurrent();
-    ImGui::SetItemTooltip("Remove your own halo for this zone from WTF\\Luxvelum-zones.ini, back to the shipped "
-                          "halo of Data\\Luxvelum\\zones.ini, or 1 where it lists none");
+    ImGui::SetItemTooltip("Remove your own values for this zone from WTF\\Luxvelum-zones.ini, back to the shipped "
+                          "values of Data\\Luxvelum\\zones.ini, or 1 where it lists none");
     ImGui::EndDisabled();
 }
 

@@ -1028,22 +1028,26 @@ be moved and resized, and keeps its place and size for the session. Its title ba
 commit of `BUILD.txt` (as in `Luxvelum reforged-dev ec0af3b`; `local` for a build outside the CI), and so does the
 first line of `Luxvelum.log`.
 
-The **This zone** section names the client's current zone and sets its sun and moon halo: factors on top of `SunScatter`
-and `MoonScatter` (0..4, 1 = the global value alone), kept as `[SunHalo]` and `[MoonHalo]` entries by `AreaTable` zone
-id with the zone's name under `[Zones]`. The shipped halos, the owner's tuning, are in `Data\Luxvelum\zones.ini`, which
-every release replaces and Luxvelum never writes; the player's own go to `WTF\Luxvelum-zones.ini` when a slider is let
-go, which no package contains, and win over the shipped ones for the zones they list. A zone neither lists keeps 1;
-**Reset this zone** removes the player's own entry and falls back to the shipped halo. The section and the log name the
-source (`shipped`, `your own`, `not listed`). The owner's own entries are folded into `data/zones.ini` by
-`tools/fold_zone_halos.py`, his values winning, so the players' copies of the shipped halos follow his corrections while
-their own edits stay. The halo follows the zone
-the map shows (Booty Bay belongs to Stranglethorn Vale), so it does not depend on which Classic light covers the place:
-Redridge has none of its own and takes Eastern Kingdoms' global light, which a per-light factor would have shared with
-the Badlands, Arathi and the sea. Crossing into another zone fades the factors over about two seconds (time constant 0.6
-s); a slider takes effect at once. While the client reports no zone (id 0, for a second in Duskwood in TEST Build-2-9),
-the last zone's halo stays. Each zone change writes a `zone 44 (Redridge Mountains): sun halo …` line to the log. The
-owner judged the halo per zone, not per region: Durotar right, the Barrens and Booty Bay far too large, Tirisfal nearly
-right (2026-11-18, `ClassicPhase=1`).
+The **This zone** section names the client's current zone and sets its sun and moon halo, factors on top of `SunScatter`
+and `MoonScatter`, and its fog density, a factor on top of `Density` and the region's density that scales every layer of
+the fog (each 0..4, 1 = the global value alone, a density of 0 clears the fog), kept as `[SunHalo]`, `[MoonHalo]` and
+`[Density]` entries by `AreaTable` zone id with the zone's name under `[Zones]`. The shipped halos, the owner's tuning,
+are in `Data\Luxvelum\zones.ini`, which every release replaces and Luxvelum never writes; the player's own go to
+`WTF\Luxvelum-zones.ini` when a slider is let go, which no package contains, and win over the shipped ones for the zones
+they list. A zone neither lists keeps 1; **Reset this zone** removes the player's own entry and falls back to the
+shipped halo. The section and the log name the source (`shipped`, `your own`, `not listed`). The owner's own entries are
+folded into `data/zones.ini` by `tools/fold_zone_halos.py`, his values winning, so the players' copies of the shipped
+halos follow his corrections while their own edits stay. The halo follows the zone the map shows (Booty Bay belongs to
+Stranglethorn Vale), so it does not depend on which Classic light covers the place: Redridge has none of its own and
+takes Eastern Kingdoms' global light, which a per-light factor would have shared with the Badlands, Arathi and the sea.
+Crossing into another zone fades the factors over about two seconds (time constant 0.6 s); a slider takes effect at
+once. While the client reports no zone (id 0, for a second in Duskwood in TEST Build-2-9), the last zone's halo stays.
+Each zone change writes a `zone 44 (Redridge Mountains): sun halo …, fog density …` line to the log. A file without a
+`[Density]` section, such as one saved before the density existed, leaves every zone's density at 1. The density takes
+effect where Luxvelum builds the frame's settings (`ConfigForFrame`), so the volumetric fog, the see-through models'
+fitted fog and the fog over the water follow it alike; the local lights' gain, which evens out the regions' densities,
+does not compensate it, so a denser zone also makes its lamps glow more. The owner judged the halo per zone, not per
+region: Durotar right, the Barrens and Booty Bay far too large, Tirisfal nearly right (2026-11-18, `ClassicPhase=1`).
 
 While the window is open, clicks and the wheel go to it only while the cursor is over it or a drag started on
 it, and keys only while one of its text fields is active (Ctrl+click on a slider). The hotkey never reaches the

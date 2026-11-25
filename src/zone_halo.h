@@ -11,6 +11,7 @@ struct ZoneHaloFactors
 {
     float sun = 1.0f;
     float moon = 1.0f;
+    float density = 1.0f;
 };
 
 struct ZoneHalo
@@ -18,6 +19,7 @@ struct ZoneHalo
     int zoneId = 0;
     float sun = 1.0f;
     float moon = 1.0f;
+    float density = 1.0f;
 };
 
 class ZoneHaloTable

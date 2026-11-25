@@ -93,7 +93,7 @@ reverse-engineering evidence.
   `overlay` (ImGui settings window: input chaining, `OverlayKey` and `ToggleKey`, drawing at `Present`),
   `settings_panel` (its widgets), `luxvelum_switch` (the off and on request of `ToggleKey` and the window, taken once
   per world frame by the hooks), `config`, `install_paths` (the client folder's `Logs`, `WTF` and `Data\Luxvelum`, the
-  DLL's folder as fallback), `zone_halo` (the sun and moon halo factor per client zone, shipped in
+  DLL's folder as fallback), `zone_halo` (the sun and moon halo and fog density factors per client zone, shipped in
   `Data\Luxvelum\zones.ini` and the player's own in `WTF\Luxvelum-zones.ini`, faded across zone borders), `log`,
   `status_log`; water: `water_data` (Forever presets, FFT tiles, foam masks), `water_classify` (liquid classes),
   `water_spectrum` and `water_fft` (GPU FFT waves), `water_contacts` (contact tracker, ring impulses at the client's

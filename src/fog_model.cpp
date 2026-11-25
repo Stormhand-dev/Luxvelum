@@ -547,6 +547,13 @@ Config ConfigForPlace(const Config& cfg, const MapPlace& place)
     return regional;
 }
 
+Config ConfigForFrame(const Config& cfg, const FrameInputs& in)
+{
+    Config local = ConfigForPlace(cfg, CameraPlace(in));
+    local.density *= in.zoneHalo.density;
+    return local;
+}
+
 float EnergyNormalisedPhaseScale(float g)
 {
     const float capped = std::min(g, kMaxEnergyNormalisedPhaseG);
