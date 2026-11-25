@@ -340,7 +340,7 @@ void CheckSettingChangesLogged(const std::wstring& outDir, const std::wstring& s
     const std::string text = logged();
     std::printf("%s", text.c_str());
     Check(reloaded &&
-              runtime_cost::HasLine(text, "settings from Luxvelum.ini: Density 0.8 -> 2.5, WaterFoam 0.3 -> 1.5"),
+              runtime_cost::HasLine(text, "settings from Luxvelum.ini: Density 1 -> 2.5, WaterFoam 0.3 -> 1.5"),
           "an INI reload logs the changed keys with their old and new values");
     Check(quietWhileEditing && CountOf(text, "settings: WaterWind 1 -> 4") == 1 &&
               CountOf(text, "WaterWind 1 -> 3") == 0,
@@ -369,7 +369,7 @@ void CheckSaveLogsNoRoundingChange(const std::wstring& outDir, const std::wstrin
     const bool saved = store.Save();
     const std::string text = LoggedByTheHarnessSince(start);
     std::printf("%s", text.c_str());
-    Check(saved && CountOf(text, "settings: Density 0.8 -> 3.371") == 1 &&
+    Check(saved && CountOf(text, "settings: Density 1 -> 3.371") == 1 &&
               CountOf(text, "Density 3.371 -> 3.371") == 0,
           "saving a value typed with more decimals than the INI keeps logs its edit once and no rounding change");
 }
