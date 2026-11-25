@@ -12,6 +12,7 @@
 #include "ps_vw_shade_low.h"
 #include "ps_vw_shade_mid.h"
 #include "vs_fullscreen.h"
+#include "water_glint.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1243,7 +1244,7 @@ void WaterRenderer::FillClassConstants(ShadingConstants& c, const WaterPreset& p
     c.waveFoam = {std::max(preset.waveFoam[0], 0.0f) * foam, 0.0f, 0.0f, 0.0f};
     c.waveFoamScaling = {preset.waveFoamScaling[0], preset.waveFoamScaling[1], preset.waveFoamScaling[2], 0.0f};
     c.surfaceResponse = {preset.roughness[0], preset.roughness[1], preset.roughness[2] * m_cfg.waterReflections,
-                         m_cfg.waterSpecular};
+                         WaterGlintStrength(m_cfg.waterSpecular, m_cfg.waterMoonGlint, m_in.lightIsMoon)};
 
     float inverse[kWaterPresetTiles] = {};
     int tileCount = 0;

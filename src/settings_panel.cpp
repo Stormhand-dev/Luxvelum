@@ -460,6 +460,9 @@ bool DrawWater(Config& c)
                       "Reflections of the sky and the scene, 0 = none");
     changed |= Slider("Sun highlight", c.waterSpecular, 0.0f, 4.0f, "%.2f",
                       "Highlight of the sun or moon on the water, 0 = none");
+    changed |= Slider("Moon highlight", c.waterMoonGlint, 0.0f, 10.0f, "%.2f",
+                      "The moon's highlight on the water at night, on top of Sun highlight: the night's light is "
+                      "dim, while the moon's disc is bright. 1 = as dim as the night's light");
     changed |= Slider("Clarity", c.waterClarity, 0.25f, 4.0f, "%.2f",
                       "How far you see into the water; larger is clearer", ImGuiSliderFlags_Logarithmic);
     changed |= Slider("Zone colours", c.waterZoneColors, 0.0f, 1.0f, "%.2f",

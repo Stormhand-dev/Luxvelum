@@ -27,6 +27,7 @@
 #include "water_fft.h"
 #include "water_ripples.h"
 #include "water_spectrum.h"
+#include "water_glint.h"
 #include "status_log.h"
 #include "transparent_fog.h"
 

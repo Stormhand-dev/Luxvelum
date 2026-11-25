@@ -82,7 +82,8 @@ bool SameWaterSettings(const Config& a, const Config& b)
 {
     return a.water == b.water && a.waterQuality == b.waterQuality && a.waterWaves == b.waterWaves &&
            a.waterWind == b.waterWind && a.waterFoam == b.waterFoam && a.waterReflections == b.waterReflections &&
-           a.waterSpecular == b.waterSpecular && a.waterClarity == b.waterClarity &&
+           a.waterSpecular == b.waterSpecular && a.waterMoonGlint == b.waterMoonGlint &&
+           a.waterClarity == b.waterClarity &&
            a.waterZoneColors == b.waterZoneColors && a.waterRipples == b.waterRipples &&
            a.waterClientSplashes == b.waterClientSplashes && a.waterDebugView == b.waterDebugView;
 }
@@ -98,6 +99,17 @@ Config ShippedWaterTuning()
     return tuned;
 }
 
+void CheckMoonGlintStrength()
+{
+    const float day = WaterGlintStrength(1.5f, 3.0f, false);
+    const float night = WaterGlintStrength(1.5f, 3.0f, true);
+    const float nightOff = WaterGlintStrength(1.5f, 0.0f, true);
+    std::printf("     glint strength: sun %.2f, moon %.2f, moon with WaterMoonGlint=0 %.2f\n", day, night, nightOff);
+    Check(day == 1.5f && night == 4.5f && nightOff == 0.0f,
+          "WaterMoonGlint multiplies the moon's highlight on the water on top of WaterSpecular and leaves the sun's "
+          "highlight alone");
+}
+
 void CheckShippedWaterSettings(const std::wstring& shippedIni)
 {
     ConfigStore store;
@@ -110,8 +122,9 @@ void CheckShippedWaterSettings(const std::wstring& shippedIni)
     const std::vector<std::string> lines = IniLines(ReadText(shippedIni));
     const char* const shippedLines[] = {"Water=1",           "WaterQuality=2",   "WaterWaves=0.5",
                                         "WaterWind=1",       "WaterFoam=0.3",    "WaterReflections=0.5",
-                                        "WaterSpecular=1.5", "WaterClarity=1",   "WaterZoneColors=0.5",
-                                        "WaterRipples=0.5",  "WaterClientSplashes=0", "WaterDebugView=0"};
+                                        "WaterSpecular=1.5", "WaterMoonGlint=3", "WaterClarity=1",
+                                        "WaterZoneColors=0.5", "WaterRipples=0.5", "WaterClientSplashes=0",
+                                        "WaterDebugView=0"};
     int found = 0;
     for (const char* shipped : shippedLines)
         found += std::count(lines.begin(), lines.end(), std::string(shipped)) == 1 ? 1 : 0;
@@ -188,6 +201,7 @@ void CheckWaterSettingClamps(const std::wstring& outDir, const std::wstring& shi
         {L"WaterWind", L"100"},     {L"WaterFoam", L"5"},        {L"WaterReflections", L"-1"},
         {L"WaterSpecular", L"9"},   {L"WaterClarity", L"0"},     {L"WaterZoneColors", L"2"},
         {L"WaterRipples", L"5"},    {L"WaterDebugView", L"42"},    {L"WaterClientSplashes", L"7"},
+        {L"WaterMoonGlint", L"99"},
     };
     for (const auto& key : outOfRange)
         WritePrivateProfileStringW(L"Luxvelum", key[0], key[1], clampedIni.c_str());
@@ -200,7 +214,8 @@ void CheckWaterSettingClamps(const std::wstring& outDir, const std::wstring& shi
                 c.waterClarity, c.waterZoneColors, c.waterRipples, c.waterDebugView);
     Check(c.water && c.waterQuality == 3 && c.waterWaves == 0.0f && c.waterWind == 10.0f && c.waterFoam == 2.0f &&
               c.waterReflections == 0.0f && c.waterSpecular == 4.0f && c.waterClarity == 0.25f &&
-              c.waterZoneColors == 1.0f && c.waterRipples == 2.0f && c.waterDebugView == 6 && c.waterClientSplashes,
+              c.waterZoneColors == 1.0f && c.waterRipples == 2.0f && c.waterDebugView == 6 && c.waterClientSplashes &&
+              c.waterMoonGlint == 10.0f,
           "out-of-range water keys in the INI are clamped to their ranges");
 
     WritePrivateProfileStringW(L"Luxvelum", L"WaterWaves", L"nan", clampedIni.c_str());
@@ -468,6 +483,7 @@ void CheckWaterSettings(const std::wstring& outDir, const std::wstring& shippedI
     CheckOverlayKeyReloadLogged(outDir, shippedIni);
     CheckWaterOnlyEditsKeepFogHistory();
     CheckShippedWaterSettings(shippedIni);
+    CheckMoonGlintStrength();
     CheckWaterSettingsSave(outDir, shippedIni);
     CheckWaterSettingClamps(outDir, shippedIni);
     CheckLiquidClassification();
