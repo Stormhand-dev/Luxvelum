@@ -1348,7 +1348,7 @@ choice, also `ClassicPhase=1` and `Temporal=0.97`, which ends the sky dithering 
 | `WaterWind` | 2 | Wind driving the waves, 0.5..10 |
 | `WaterFoam`, `WaterReflections` | 1, 1 | Foam and reflection strength 0..2 |
 | `WaterSpecular` | 1 | Sun or moon glint 0..4 |
-| `WaterMoonGlint` | 3 | The moon's glint 0..10, on top of `WaterSpecular`: the night's direct light the water is lit by is dim (and scaled by 0.35), while the moon's disc is bright, so at 1 the moon's path on the lake was barely visible (owner, Mulgore, 2026-11-24) |
+| `WaterMoonGlint` | 6 | The moon's glint 0..10, on top of `WaterSpecular`: the night's direct light the water is lit by is dim (and scaled by 0.35), while the moon's disc is bright, so at 1 the moon's path on the lake was barely visible (owner, Mulgore, 2026-11-24) |
 | `WaterClarity` | 1 | How far you see into the water 0.25..4 |
 | `WaterZoneColors` | 0.5 | Tint by the zone's own water colours 0..1 |
 | `WaterRipples` | 0.5 | Wakes of units in the water 0..2; 0 = no unit reads and no ripple simulation |

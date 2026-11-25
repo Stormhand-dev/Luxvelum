@@ -122,7 +122,7 @@ void CheckShippedWaterSettings(const std::wstring& shippedIni)
     const std::vector<std::string> lines = IniLines(ReadText(shippedIni));
     const char* const shippedLines[] = {"Water=1",           "WaterQuality=2",   "WaterWaves=0.5",
                                         "WaterWind=1",       "WaterFoam=0.3",    "WaterReflections=0.5",
-                                        "WaterSpecular=1.5", "WaterMoonGlint=3", "WaterClarity=1",
+                                        "WaterSpecular=1.5", "WaterMoonGlint=6", "WaterClarity=1",
                                         "WaterZoneColors=0.5", "WaterRipples=0.5", "WaterClientSplashes=0",
                                         "WaterDebugView=0"};
     int found = 0;

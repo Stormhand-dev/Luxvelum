@@ -42,8 +42,10 @@ reverse-engineering evidence.
   `WTF\Luxvelum.ini` yet and a `Luxvelum.ini`, `Luxveil.ini` or `CoAVolFog.ini` lies next to `Wow.exe`, leave
   `WTF\Luxvelum.ini` out so the DLL takes the owner's settings over. Never replace `WTF\Luxvelum-zones.ini`: it holds
   the player's own zone halos. After an owner test, read `Logs\Luxvelum.log` in the client folder.
-- `data/zones.ini` holds the owner's zone halos, shipped to every player. Before a release, fold the entries of the
-  owner's `WTF\Luxvelum-zones.ini` into it, then, with his consent, empty his file so the shipped halos apply to him.
+- `data/zones.ini` holds the owner's zone values (sun and moon halos, fog density), the defaults every release ships.
+  Whenever you install into his client or prepare a release, fold the entries of his `WTF\Luxvelum-zones.ini` into
+  it with `tools/fold_zone_halos.py` (his values win), then install the new `zones.ini` and empty his file, as he
+  asked on 2026-11-25, so the shipped values apply to him.
 - Keep plans and results in the conversation. Routine edits need no backups, receipts or standalone reports; use Git.
 
 ## Owner and testing
