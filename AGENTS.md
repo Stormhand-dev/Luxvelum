@@ -33,9 +33,11 @@ reverse-engineering evidence.
 - The shipped `Luxvelum.ini` always carries the owner's settings: whenever you install into his client or prepare a
   release, compare his `WTF\Luxvelum.ini` with the repository's and take every value of his into `Luxvelum.ini`,
   keeping the repository's comments, before anything else; players keep their own backups of the file.
-- Never launch the game client. Install without asking when the client is closed: stage `Luxvelum.dll` and
-  `Logs\Luxvelum.log` first, and while either is reported open in another app the game runs, so tell the owner and
-  wait. Check that his `WTF\Luxvelum.ini` holds the repository's values (else take his first, as above), then replace
+- Never launch the game client. Install without asking when the client is closed: stage `Logs\Luxvelum.log` and
+  take the client as closed only when its last session ends with `game window closed`, which Luxvelum logs when the
+  game window it is attached to closes; otherwise, the game still open or crashed, ask the owner first. Whether the
+  bridge reports the DLL or the log open is no reliable sign either way.
+  Check that his `WTF\Luxvelum.ini` holds the repository's values (else take his first, as above), then replace
   `Luxvelum.dll` next to `Wow.exe` (and `version.dll` where the owner's client uses it), `WTF\Luxvelum.ini`,
   `Data\Luxvelum\fogdata.bin`, `Data\Luxvelum\fogdata-without-darker-nights.bin`, `Data\Luxvelum\waterdata.bin`
   and `Data\Luxvelum\zones.ini`. While there is no

@@ -10,6 +10,7 @@
 #include "engine.h"
 #include "fog_data.h"
 #include "fog_data_choice.h"
+#include "game_window_log.h"
 #include "fog_model.h"
 #include "forever_look.h"
 #include "fullscreen_triangle.h"

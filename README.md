@@ -1092,6 +1092,10 @@ the client's, and a `ToggleKey` set later works only from the next start. `Save`
 `ToggleKey` from the INI, so a hand edit of them made since the last reload is kept. Each hotkey swallows only its own
 key-up, so a key released while the other hotkey is held still reaches the client. The log names the keys that arrive
 with Ctrl, Shift or Alt, and `OverlayKey` and `ToggleKey` themselves, as for `OverlayKey` on laptops.
+While the window procedure is chained, the game window's `WM_DESTROY` writes `game window closed` to the log, the
+last line of a session the client ended normally; a session whose log stops without it is still running or crashed,
+which is how an install into the owner's client tells whether the game is closed. With `Overlay=0` and no `ToggleKey`
+the procedure stays the client's and no such line is written.
 
 ## Build
 
